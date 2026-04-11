@@ -23,6 +23,12 @@ app.get("/", (req, res) => {
 
 // Authentication Routes
 const authRoutes = require('./src/routes/authRoutes');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./src/config/swagger');
+
+// Swagger UI Route
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 app.use('/api/auth', authRoutes);
 
 // Error Middleware
