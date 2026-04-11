@@ -184,7 +184,11 @@ const forgotPassword = async (req, res) => {
             user.otp = undefined;
             user.otpExpires = undefined;
             await user.save();
-            return res.status(500).json({ success: false, message: 'Email could not be sent' });
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Email could not be sent',
+                error: err.message // Providing actual error for debugging
+            });
         }
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
