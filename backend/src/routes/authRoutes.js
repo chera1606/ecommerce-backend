@@ -1,11 +1,23 @@
 const express = require('express');
 const router = express.Router();
-const { registerUser, loginUser } = require('../controllers/authController');
+const {
+    registerUser,
+    loginUser,
+    refreshToken,
+    logoutUser,
+    forgotPassword,
+    resetPassword
+} = require('../controllers/authController');
+const { protect } = require('../middleware/authMiddleware');
 
-// Route for User Sign-Up
+// Public Routes
 router.post('/register', registerUser);
-
-// Route for User Login
 router.post('/login', loginUser);
+router.post('/refresh-token', refreshToken);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
+
+// Private Routes
+router.post('/logout', protect, logoutUser);
 
 module.exports = router;

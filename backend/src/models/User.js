@@ -27,13 +27,16 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['user', 'admin'],
         default: 'user'
-    }
+    },
+    otp: String,
+    otpExpires: Date,
+    refreshToken: String
 }, { timestamps: true });
 
 // Hash password before saving to the database
-userSchema.pre('save', async function (next) {
+userSchema.pre('save', async function () {
     if (!this.isModified('password')) {
-        next();
+        return;
     }
 
     const salt = await bcrypt.genSalt(10);
