@@ -1,31 +1,30 @@
-const nodemailer = require('nodemailer');
+
 
 const sendEmail = async (options) => {
-    // 1. Create a transporter
-    const transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: false, // true for 465, false for other ports (like 587)
-        auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+            'accept': 'application/json',
+            'api-key': process.env.BREVO_API_KEY,
+            'content-type': 'application/json',
         },
-        tls: {
-            rejectUnauthorized: false // Helps with some hosting provider restrictions
-        }
+        body: JSON.stringify({
+            sender: {
+                name: 'E-Shop Support',
+                email: process.env.FROM_EMAIL,
+            },
+            to: [{ email: options.email }],
+            subject: options.subject,
+            textContent: options.message,
+            htmlContent: options.html,
+        }),
     });
 
-    // 2. Define email options
-    const mailOptions = {
-        from: `E-Shop Support <${process.env.FROM_EMAIL}>`,
-        to: options.email,
-        subject: options.subject,
-        text: options.message,
-        html: options.html,
-    };
-
-    // 3. Send the email
-    await transporter.sendMail(mailOptions);
+    if (!response.ok) {
+        const errorBody = await response.json();
+        throw new Error(errorBody.message || `Brevo API error: ${response.status}`);
+    }
 };
 
 module.exports = sendEmail;
+
