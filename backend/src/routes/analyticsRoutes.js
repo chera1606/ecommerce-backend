@@ -8,9 +8,54 @@ const { adminAuth } = require('../middleware/roleMiddleware');
 router.use(protect, adminAuth);
 
 /**
- * @route   GET /api/admin/analytics/performance
- * @desc    Fetch heavy dynamic DB-driven aggregation analytics payload representing the Performance Dashboard GUI.
- * @access  Private/Admin
+ * @openapi
+ * /api/admin/analytics/performance:
+ *   get:
+ *     tags: [Analytics]
+ *     summary: Fetch performance dashboard analytics
+ *     description: Returns a comprehensive payload including revenue trends, top categories, asset velocity, and inventory value.
+ *     responses:
+ *       200:
+ *         description: Success
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     revenue:
+ *                       type: object
+ *                       properties:
+ *                         total: { type: number }
+ *                         currency: { type: string }
+ *                         growthRate: { type: number }
+ *                     topCategories:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           name: { type: string }
+ *                           percentage: { type: number }
+ *                     assetVelocity:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           productName: { type: string }
+ *                           inventoryChurnDays: { type: number }
+ *                           statusColor: { type: string }
+ *                     inventory:
+ *                       type: object
+ *                       properties:
+ *                         totalValue: { type: number }
+ *                         currency: { type: string }
+ *                     products:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Product'
  */
 router.get('/performance', getPerformanceAnalytics);
 

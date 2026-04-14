@@ -4,9 +4,9 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'E-Shop API',
-      version: '1.0.0',
-      description: 'API documentation for the E-Shop backend',
+      title: 'EFOY GEBYA Admin API',
+      version: '1.5.0',
+      description: 'Comprehensive administrative API documentation for the EFOY GEBYA E-commerce platform.',
     },
     servers: [
       {
@@ -15,7 +15,7 @@ const options = {
       },
       {
         url: 'http://localhost:5000',
-        description: 'Local server',
+        description: 'Local development server',
       },
     ],
     components: {
@@ -33,7 +33,12 @@ const options = {
       },
     ],
   },
-  apis: ['./src/routes/*.js', './server.js'], // Paths to files containing OpenAPI definitions
+  // Scanning both the routes and the global schema definitions
+  apis: [
+    './src/swagger/schemas.js', 
+    './src/routes/*.js', 
+    './server.js'
+  ], 
 };
 
 const swaggerSpec = swaggerJSDoc(options);
