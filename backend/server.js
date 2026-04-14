@@ -24,7 +24,7 @@ app.get("/", (req, res) => {
 // Authentication Routes
 const authRoutes = require('./src/routes/authRoutes');
 const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./src/config/swagger');
+const swaggerSpec = require('./src/swagger/config');
 
 // Swagger UI Route
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
