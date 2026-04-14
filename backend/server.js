@@ -31,6 +31,19 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use('/api/auth', authRoutes);
 
+// Admin Routes
+const adminRoutes = require('./src/routes/adminRoutes');
+const orderRoutes = require('./src/routes/orderRoutes');
+const userRoutes = require('./src/routes/userRoutes');
+const analyticsRoutes = require('./src/routes/analyticsRoutes');
+const productRoutes = require('./src/routes/productRoutes');
+
+app.use('/api/admin', adminRoutes);
+app.use('/api/admin/orders', orderRoutes);
+app.use('/api/admin/users', userRoutes);
+app.use('/api/admin/analytics', analyticsRoutes);
+app.use('/api/admin/products', productRoutes);
+
 // Error Middleware
 const { notFound, errorHandler } = require('./src/middleware/errorMiddleware');
 app.use(notFound);
