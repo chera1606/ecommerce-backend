@@ -65,7 +65,6 @@ Authenticate and receive Access and Refresh tokens.
   "success": true,
   "message": "Login successful",
   "data": {
-    "id": "65f8a...",
     "email": "john.doe@example.com",
     "role": "user",
     "accessToken": "eyJhbG...",
@@ -176,5 +175,262 @@ Invalidate the current session and clear the refresh token.
 {
   "success": true,
   "message": "Logged out successfully"
+}
+```
+
+---
+
+## 🛡️ Admin Dashboard Endpoints
+
+All endpoints below require a valid JWT Access Token and an `admin` role.
+
+**Headers:**
+`Authorization: Bearer <accessToken>`
+
+---
+
+### 1. Overview & Generic Admin
+
+#### Dashboard Overview
+- **URL:** `/api/admin/overview`
+- **Method:** `GET`
+
+#### Products Dashboard Stream
+- **URL:** `/api/admin/products/stream`
+- **Method:** `GET`
+
+#### Recent Orders
+- **URL:** `/api/admin/orders/recent`
+- **Method:** `GET`
+
+#### Order Details
+- **URL:** `/api/admin/orders/:id`
+- **Method:** `GET`
+
+---
+
+### 2. Products
+
+#### Get Products
+- **URL:** `/api/admin/products`
+- **Method:** `GET`
+
+#### Create Product
+- **URL:** `/api/admin/products`
+- **Method:** `POST`
+- **Content-Type:** `multipart/form-data` (requires `image` file upload)
+
+#### Update Product
+- **URL:** `/api/admin/products/:id`
+- **Method:** `PUT`
+- **Content-Type:** `multipart/form-data` (supports `image` file upload)
+
+#### Delete Product
+- **URL:** `/api/admin/products/:id`
+- **Method:** `DELETE`
+
+---
+
+### 3. Orders
+
+#### Get Orders (Transaction Log)
+- **URL:** `/api/admin/orders`
+- **Method:** `GET`
+- **Query Params:**
+  - `page` (optional, default: 1)
+  - `limit` (optional, default: 10)
+  - `search` (optional, matches user name or formatted orderId)
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "stats": {
+    "activeShipments": 10,
+    "urgentOrders": 5
+  },
+  "data": [
+    {
+      "orderId": "QB-2B9F",
+      "guest": "John Doe",
+      "product": "Smartphone",
+      "total": 999.99,
+      "date": "2026-04-14T12:00:00Z",
+      "status": "PENDING",
+      "priority": false
+    }
+  ],
+  "pagination": {
+    "total": 50,
+    "page": 1,
+    "limit": 10,
+    "pages": 5
+  }
+}
+```
+
+#### Update Order Status
+Strict transition rules: `PENDING` &rarr; `SHIPPED` &rarr; `DELIVERED`. Backward transitions or skipping states are rejected.
+
+- **URL:** `/api/admin/orders/:id/status`
+- **Method:** `PATCH`
+
+**Request Body:**
+```json
+{
+  "status": "SHIPPED"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Order status updated successfully",
+  "data": {
+    "status": "SHIPPED"
+  }
+}
+```
+
+---
+
+### 4. Guests (Users)
+
+#### Get Users
+- **URL:** `/api/admin/users`
+- **Method:** `GET`
+- **Query Params:**
+  - `page` (optional, default: 1)
+  - `limit` (optional, default: 10)
+  - `search` (optional, matches name, email, or guestId)
+  - `role` (optional, `REGULAR` or `PRIVILEGED`)
+  - `status` (optional, `ACTIVE` or `SUSPENDED`)
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "stats": {
+    "totalUsers": 120,
+    "privilegedUsers": 12,
+    "activeNow": 115,
+    "newToday": 3
+  },
+  "data": [
+    {
+      "guestId": "#GB-2B9F",
+      "fullName": "John Doe",
+      "email": "john.doe@example.com",
+      "joined": "Apr 14, 2026",
+      "role": "REGULAR",
+      "status": "ACTIVE"
+    }
+  ]
+}
+```
+
+#### Update User Status
+Administrators cannot suspend their own accounts.
+
+- **URL:** `/api/admin/users/:id/status`
+- **Method:** `PATCH`
+
+**Request Body:**
+```json
+{
+  "status": "SUSPENDED"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "User status updated to SUSPENDED",
+  "data": {
+    "status": "SUSPENDED"
+  }
+}
+```
+
+#### Update User Role
+Administrators cannot change their own roles or assign `ADMIN` role.
+
+- **URL:** `/api/admin/users/:id/role`
+- **Method:** `PATCH`
+
+**Request Body:**
+```json
+{
+  "role": "PRIVILEGED"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "User role updated to PRIVILEGED",
+  "data": {
+    "role": "PRIVILEGED"
+  }
+}
+```
+
+---
+
+### 5. Analytics
+
+#### Performance Dashboard
+Aggregated analytics calculated purely from real database values (no mocks). Orders revenue calculation based solely on `DELIVERED` status.
+
+- **URL:** `/api/admin/analytics/performance`
+- **Method:** `GET`
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "revenue": {
+      "total": 9250.50,
+      "currency": "USD",
+      "growthRate": 12.45
+    },
+    "topCategories": [
+      {
+        "name": "ELECTRONICS",
+        "percentage": 85
+      },
+      {
+        "name": "FOOTWEAR",
+        "percentage": 15
+      }
+    ],
+    "assetVelocity": [
+      {
+        "productName": "Ergotech Keyboard",
+        "inventoryChurnDays": 5,
+        "statusColor": "red"
+      }
+    ],
+    "inventory": {
+      "totalValue": 140000.00,
+      "currency": "USD",
+      "systemLoad": "Nominal"
+    },
+    "products": [
+      {
+        "id": "#QB-0000",
+        "name": "Ergotech Keyboard",
+        "color": "Black",
+        "stock": 4,
+        "price": 100,
+        "thumbnail": "https://example.com/image.jpg",
+        "isLowStock": true
+      }
+    ]
+  }
 }
 ```
