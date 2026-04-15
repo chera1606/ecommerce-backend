@@ -16,6 +16,8 @@ const registerUser = async (req, res) => {
     }
 
     const { firstName, lastName, email, password, confirmPassword } = req.body;
+    // Strictly define allowed fields to prevent role/status injection
+    const allowedFields = { firstName, lastName, email, password };
 
     try {
         if (!firstName || !lastName || !email || !password || !confirmPassword) {
@@ -31,12 +33,7 @@ const registerUser = async (req, res) => {
             return res.status(400).json({ success: false, message: 'User already exists' });
         }
 
-        const user = await User.create({
-            firstName,
-            lastName,
-            email,
-            password
-        });
+        const user = await User.create(allowedFields);
 
         return res.status(201).json({
             success: true,

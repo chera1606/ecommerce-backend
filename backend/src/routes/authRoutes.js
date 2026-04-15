@@ -12,82 +12,6 @@ const { protect } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
- * components:
- *   schemas:
- *     User:
- *       type: object
- *       required:
- *         - firstName
- *         - lastName
- *         - email
- *         - password
- *         - confirmPassword
- *       properties:
- *         firstName:
- *           type: string
- *           example: John
- *         lastName:
- *           type: string
- *           example: Doe
- *         email:
- *           type: string
- *           format: email
- *           example: john.doe@example.com
- *         password:
- *           type: string
- *           example: securePassword123
- *         confirmPassword:
- *           type: string
- *           example: securePassword123
- *     Login:
- *       type: object
- *       required:
- *         - email
- *         - password
- *       properties:
- *         email:
- *           type: string
- *           format: email
- *           example: john.doe@example.com
- *         password:
- *           type: string
- *           example: securePassword123
- *     ForgotPassword:
- *       type: object
- *       required:
- *         - email
- *       properties:
- *         email:
- *           type: string
- *           format: email
- *           example: john.doe@example.com
- *     ResetPassword:
- *       type: object
- *       required:
- *         - email
- *         - otp
- *         - newPassword
- *         - confirmPassword
- *       properties:
- *         email:
- *           type: string
- *           format: email
- *           example: john.doe@example.com
- *         otp:
- *           type: string
- *           example: "123456"
- *         newPassword:
- *           type: string
- *           example: newSecurePassword123
- *         confirmPassword:
- *           type: string
- *           example: newSecurePassword123
- */
-
-// Public Routes
-
-/**
- * @swagger
  * /api/auth/register:
  *   post:
  *     summary: Register a new user
@@ -97,7 +21,7 @@ const { protect } = require('../middleware/authMiddleware');
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/User'
+ *             $ref: '#/components/schemas/UserRegister'
  *     responses:
  *       201:
  *         description: User registered successfully
