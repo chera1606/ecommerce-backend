@@ -229,7 +229,16 @@ const getUserProfile = asyncHandler(async (req, res) => {
     if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
     }
-    res.json({ success: true, data: user });
+
+    const userData = user.toObject();
+    // Add formatted joinedAt date for UI
+    userData.joinedAt = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    }) : 'N/A';
+
+    res.json({ success: true, data: userData });
 });
 
 /**
@@ -280,6 +289,39 @@ const updateUserPassword = asyncHandler(async (req, res) => {
     await user.save();
     
     res.json({ success: true, message: 'Password updated successfully' });
+});
+
+/**
+ * @desc    Update profile photo
+ * @route   PATCH /api/users/profile/photo
+ * @access  Private
+ */
+const { uploadBuffer } = require('../utils/cloudinaryHelper');
+const updateUserProfilePhoto = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: 'Please upload a file' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    try {
+        const photoUrl = await uploadBuffer(req.file.buffer, 'profiles');
+        user.profilePicture = photoUrl;
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'Profile photo updated successfully',
+            data: {
+                profilePicture: photoUrl
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Cloudinary upload failed', error: error.message });
+    }
 });
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -354,6 +396,7 @@ module.exports = {
     // Standard User Endpoints
     getUserProfile,
     updateUserProfile,
+    updateUserProfilePhoto,
     updateUserPassword,
     addAddress,
     updateAddress,

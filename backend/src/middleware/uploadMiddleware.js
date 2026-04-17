@@ -1,22 +1,24 @@
 const multer = require('multer');
+const path = require('path');
 
-// Store file temporarily in memory
+// Memory storage for direct buffer upload to Cloudinary
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-    // Reject a file if it's not an image
-    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png' || file.mimetype === 'image/jpg') {
-        cb(null, true);
+    const filetypes = /jpeg|jpg|png|gif/;
+    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = filetypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+        return cb(null, true);
     } else {
-        cb(new Error('Unsupported file format. Only JPG, JPEG, and PNG are allowed.'), false);
+        cb(new Error('Only Images (JPG, PNG, GIF) are allowed!'), false);
     }
 };
 
 const upload = multer({
     storage,
-    limits: {
-        fileSize: 1024 * 1024 * 5 // 5MB max size
-    },
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
     fileFilter
 });
 
