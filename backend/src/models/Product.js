@@ -8,7 +8,11 @@ const productSchema = new mongoose.Schema({
     },
     classification: { 
         type: String, 
-        enum: ['FOOTWEAR', 'ELECTRONICS', 'APPAREL', 'ACCESSORIES'] 
+        enum: [
+            'SHOES', 'ELECTRONICS', 'CLOTHING', 'ACCESSORIES', 
+            'CHILDREN', 'HOME MATERIALS', 'BEAUTY',
+            'FOOTWEAR', 'APPAREL' // Legacy support
+        ] 
     },
     color: { type: String },
     inventoryLevel: { 
