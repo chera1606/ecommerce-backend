@@ -43,4 +43,28 @@ const protect = async (req, res, next) => {
     }
 };
 
-module.exports = { protect };
+/**
+ * @desc    Middleware to optionally populate req.user (Doesn't block guest users)
+ * @access  Public
+ */
+const optionalProtect = async (req, res, next) => {
+    let token;
+
+    if (
+        req.headers.authorization &&
+        req.headers.authorization.startsWith('Bearer')
+    ) {
+        try {
+            token = req.headers.authorization.split(' ')[1];
+            const decoded = verifyToken(token);
+            if (decoded) {
+                req.user = await User.findById(decoded.id).select('-password');
+            }
+        } catch (error) {
+            // Ignore token failure for optional auth
+        }
+    }
+    next();
+};
+
+module.exports = { protect, optionalProtect };

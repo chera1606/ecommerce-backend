@@ -42,6 +42,27 @@
  *           type: string
  *           description: QB-XXXX formatted ID
  * 
+ *     ShippingAddress:
+ *       type: object
+ *       required:
+ *         - contactName
+ *         - phone
+ *         - country
+ *         - address
+ *       properties:
+ *         contactName:
+ *           type: string
+ *           example: Abebe Girma
+ *         phone:
+ *           type: string
+ *           example: "+251911234567"
+ *         country:
+ *           type: string
+ *           example: Ethiopia
+ *         address:
+ *           type: string
+ *           example: "Bole Road, Addis Ababa"
+ * 
  *     OrderItem:
  *       type: object
  *       properties:
@@ -49,14 +70,22 @@
  *           type: string
  *         quantity:
  *           type: number
+ *           minimum: 1
  *         price:
  *           type: number
+ *         size:
+ *           type: string
+ *           example: M
+ *         color:
+ *           type: string
+ *           example: STANDARD BLACK
  * 
  *     Order:
  *       type: object
  *       required:
  *         - userId
  *         - items
+ *         - totalPrice
  *       properties:
  *         id:
  *           type: string
@@ -66,15 +95,38 @@
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/OrderItem'
+ *         shippingAddress:
+ *           $ref: '#/components/schemas/ShippingAddress'
+ *         urgentDelivery:
+ *           type: boolean
+ *           default: false
+ *           description: Whether urgent delivery (+$5.00 fee) was selected
+ *         urgentDeliveryFee:
+ *           type: number
+ *           example: 5
+ *         paymentMethod:
+ *           type: string
+ *           enum: [TELEBIRR, CHAPA, CASH_ON_DELIVERY, PENDING]
+ *           example: TELEBIRR
+ *         paymentStatus:
+ *           type: string
+ *           enum: [UNPAID, PAID, FAILED, REFUNDED]
+ *           default: UNPAID
+ *         subtotal:
+ *           type: number
+ *           description: Sum of (price × quantity) for all items
  *         totalAmount:
  *           type: number
  *         totalPrice:
  *           type: number
+ *           description: Final total including urgent delivery fee
  *         status:
  *           type: string
- *           enum: [PENDING, SHIPPED, DELIVERED]
+ *           enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED]
+ *           default: PENDING
  *         priority:
  *           type: boolean
+ *           description: true when urgentDelivery is enabled
  * 
  * 
  *     User:

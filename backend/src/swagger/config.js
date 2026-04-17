@@ -4,9 +4,9 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'EFOY GEBYA Admin API',
-      version: '1.5.0',
-      description: 'Comprehensive administrative API documentation for the EFOY GEBYA E-commerce platform.',
+      title: 'EFOY GEBYA E-Shop API',
+      version: '2.0.0',
+      description: 'Full API documentation for the EFOY GEBYA E-commerce platform — includes public Home/Shop APIs, Auth, Cart, Orders, and Admin endpoints.',
     },
     servers: [
       {
@@ -27,11 +27,8 @@ const options = {
         },
       },
     },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
+    // Security is set per-endpoint. Public routes declare security: [] to override this.
+    security: [],
   },
   // Scanning both the routes and the global schema definitions
   apis: [

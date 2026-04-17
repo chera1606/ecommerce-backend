@@ -28,11 +28,36 @@ const productSchema = new mongoose.Schema({
     
     // Legacy fields - made optional but kept for DB compatibility
     price: { type: Number }, 
-    stock: { type: Number, default: 0 }
+    stock: { type: Number, default: 0 },
+
+    // New Fields for Home Page & Details
+    description: { type: String, trim: true },
+    images: [{ type: String }],
+    category: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'Category',
+        required: false // Optional for legacy products, but recommended
+    },
+    rating: { type: Number, default: 0, min: 0, max: 5 },
+    featured: { type: Boolean, default: false },
+    sizes: [{ type: String }],
+    colors: [{ type: String }],
+    salesCount: { type: Number, default: 0 } // Useful for quick sorting
 }, { 
     timestamps: true,
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
+});
+
+// Sync unitPrice/price and inventoryLevel/stock
+productSchema.pre('save', function(next) {
+    if (this.isModified('unitPrice')) this.price = this.unitPrice;
+    else if (this.isModified('price')) this.unitPrice = this.price;
+
+    if (this.isModified('inventoryLevel')) this.stock = this.inventoryLevel;
+    else if (this.isModified('stock')) this.inventoryLevel = this.stock;
+
+    next();
 });
 
 // Virtual for low stock alert
