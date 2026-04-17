@@ -13,6 +13,8 @@ router.use(protect, adminAuth);
  *   get:
  *     tags: [Users]
  *     summary: Get all users
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of users with QB-formatted IDs
@@ -25,6 +27,8 @@ router.get('/', getUsers);
  *   patch:
  *     tags: [Users]
  *     summary: Update user status
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -38,7 +42,7 @@ router.get('/', getUsers);
  *             type: object
  *             required: [status]
  *             properties:
- *               status: { type: string, enum: [ACTIVE, SUSPENDED, PENDING] }
+ *               status: { type: string, enum: [ACTIVE, SUSPENDED] }
  *     responses:
  *       200:
  *         description: Status updated successfully
@@ -51,6 +55,8 @@ router.patch('/:id/status', updateUserStatus);
  *   patch:
  *     tags: [Users]
  *     summary: Update user role
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id

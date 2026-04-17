@@ -18,6 +18,8 @@ router.use(protect);
  *   get:
  *     tags: [Cart]
  *     summary: Get current user's cart
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: User's cart with items and total price
@@ -50,6 +52,8 @@ router.use(protect);
  *   post:
  *     tags: [Cart]
  *     summary: Add item to cart
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -78,6 +82,8 @@ router.use(protect);
  *   delete:
  *     tags: [Cart]
  *     summary: Clear the entire cart
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Cart cleared successfully
@@ -92,6 +98,8 @@ router.delete('/', clearCart);
  *   put:
  *     tags: [Cart]
  *     summary: Update quantity of a cart item
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: itemId
@@ -117,6 +125,8 @@ router.delete('/', clearCart);
  *   delete:
  *     tags: [Cart]
  *     summary: Remove a single item from cart
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: itemId

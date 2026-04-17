@@ -56,8 +56,10 @@ const orderRoutes = require('./src/routes/orderRoutes');
 const userRoutes = require('./src/routes/userRoutes');
 const analyticsRoutes = require('./src/routes/analyticsRoutes');
 const productRoutes = require('./src/routes/productRoutes');
+const adminProfileRoutes = require('./src/routes/adminProfileRoutes');
 
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminProfileRoutes);
 app.use('/api/admin/orders', orderRoutes);
 app.use('/api/admin/users', userRoutes);
 app.use('/api/admin/analytics', analyticsRoutes);

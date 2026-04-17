@@ -121,7 +121,13 @@ const getProducts = asyncHandler(async (req, res) => {
  * @route   POST /api/admin/products
  */
 const createProduct = asyncHandler(async (req, res) => {
+    // Sanitize request body to remove empty objects (fixes Cast to String failed for {})
     const productData = { ...req.body };
+    Object.keys(productData).forEach(key => {
+        if (typeof productData[key] === 'object' && productData[key] !== null && !Array.isArray(productData[key]) && Object.keys(productData[key]).length === 0) {
+            delete productData[key];
+        }
+    });
 
     // 1. Field Mapping (Canonicalization & Sync)
     if (productData.price && !productData.unitPrice) productData.unitPrice = productData.price;
@@ -185,7 +191,13 @@ const updateProduct = asyncHandler(async (req, res) => {
     const oldProduct = await Product.findById(req.params.id);
     if (!oldProduct) return res.status(404).json({ success: false, message: "Product not found" });
 
+    // Sanitize request body to remove empty objects (fixes Cast to String failed for {})
     const updateData = { ...req.body };
+    Object.keys(updateData).forEach(key => {
+        if (typeof updateData[key] === 'object' && updateData[key] !== null && !Array.isArray(updateData[key]) && Object.keys(updateData[key]).length === 0) {
+            delete updateData[key];
+        }
+    });
 
     // Mapping for backward compatibility & Sync
     if (updateData.price && !updateData.unitPrice) updateData.unitPrice = updateData.price;

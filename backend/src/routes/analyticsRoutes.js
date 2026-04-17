@@ -14,6 +14,8 @@ router.use(protect, adminAuth);
  *     tags: [Analytics]
  *     summary: Fetch performance dashboard analytics
  *     description: Returns a comprehensive payload including revenue trends, top categories, asset velocity, and inventory value.
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Success
