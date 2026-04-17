@@ -1,6 +1,14 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
+const userAddressSchema = new mongoose.Schema({
+    contactName: { type: String, required: true },
+    phone: { type: String, required: true },
+    country: { type: String, required: true },
+    address: { type: String, required: true },
+    isDefault: { type: Boolean, default: false }
+});
+
 const userSchema = new mongoose.Schema({
     firstName: {
         type: String,
@@ -35,7 +43,12 @@ const userSchema = new mongoose.Schema({
     },
     otp: String,
     otpExpires: Date,
-    refreshToken: String
+    refreshToken: String,
+    profilePicture: {
+        type: String,
+        default: ''
+    },
+    addresses: [userAddressSchema]
 }, { timestamps: true });
 
 // Hash password before saving to the database
