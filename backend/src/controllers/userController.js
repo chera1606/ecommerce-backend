@@ -282,6 +282,39 @@ const updateUserPassword = asyncHandler(async (req, res) => {
     res.json({ success: true, message: 'Password updated successfully' });
 });
 
+/**
+ * @desc    Update profile photo
+ * @route   PATCH /api/users/profile/photo
+ * @access  Private
+ */
+const { uploadBuffer } = require('../utils/cloudinaryHelper');
+const updateUserProfilePhoto = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: 'Please upload a file' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    try {
+        const photoUrl = await uploadBuffer(req.file.buffer, 'profiles');
+        user.profilePicture = photoUrl;
+        await user.save();
+
+        res.json({
+            success: true,
+            message: 'Profile photo updated successfully',
+            data: {
+                profilePicture: photoUrl
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Cloudinary upload failed', error: error.message });
+    }
+});
+
 // ════════════════════════════════════════════════════════════════════════════
 // NEW: USER ADDRESS MANAGEMENT
 // ════════════════════════════════════════════════════════════════════════════
@@ -354,6 +387,7 @@ module.exports = {
     // Standard User Endpoints
     getUserProfile,
     updateUserProfile,
+    updateUserProfilePhoto,
     updateUserPassword,
     addAddress,
     updateAddress,

@@ -20,18 +20,16 @@ router.use(protect, adminAuth);
  *   get:
  *     tags: [Products]
  *     summary: List all products
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of products with inventory details
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
  *   post:
  *     tags: [Products]
  *     summary: Create a new product
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -41,7 +39,7 @@ router.use(protect, adminAuth);
  *             properties:
  *               name: { type: string }
  *               sku: { type: string }
- *               classification: { type: string, enum: [FOOTWEAR, ELECTRONICS, APPAREL, ACCESSORIES] }
+ *               classification: { type: string, enum: [SHOES, CLOTHING, ELECTRONICS, ACCESSORIES, CHILDREN, HOME MATERIALS, BEAUTY, FOOTWEAR, APPAREL] }
  *               unitPrice: { type: number }
  *               inventoryLevel: { type: number }
  *               color: { type: string }
@@ -50,8 +48,6 @@ router.use(protect, adminAuth);
  *     responses:
  *       201:
  *         description: Product created successfully
- *       400:
- *         description: Validation error
  */
 router.get('/', getProducts);
 router.post('/', upload.single('image'), createProduct);
@@ -62,6 +58,8 @@ router.post('/', upload.single('image'), createProduct);
  *   put:
  *     tags: [Products]
  *     summary: Update an existing product
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -85,6 +83,8 @@ router.post('/', upload.single('image'), createProduct);
  *   delete:
  *     tags: [Products]
  *     summary: Delete a product
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id

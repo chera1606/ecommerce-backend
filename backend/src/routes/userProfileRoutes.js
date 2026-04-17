@@ -3,12 +3,14 @@ const router = express.Router();
 const { 
     getUserProfile,
     updateUserProfile,
+    updateUserProfilePhoto,
     updateUserPassword,
     addAddress,
     updateAddress,
     deleteAddress
 } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
+const upload = require('../middleware/uploadMiddleware');
 
 // ALL routes below require login
 router.use(protect); 
@@ -45,6 +47,27 @@ router.use(protect);
 router.route('/profile')
     .get(getUserProfile)
     .put(updateUserProfile);
+
+/**
+ * @openapi
+ * /api/users/profile/photo:
+ *   patch:
+ *     tags: [User Profile]
+ *     summary: Update profile photo
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image: { type: string, format: binary }
+ *     responses:
+ *       200:
+ *         description: Photo updated successfully
+ */
+router.patch('/profile/photo', upload.single('image'), updateUserProfilePhoto);
 
 /**
  * @openapi

@@ -14,7 +14,7 @@ const getDashboardOverview = async (req, res) => {
                 { $group: { _id: null, totalRevenue: { $sum: "$totalPrice" } } }
             ]),
             Order.countDocuments(),
-            User.countDocuments({ role: 'user' })
+            User.countDocuments({ role: 'REGULAR' })
         ]);
 
         const revenue = revenueData.length > 0 ? revenueData[0].totalRevenue : 0;

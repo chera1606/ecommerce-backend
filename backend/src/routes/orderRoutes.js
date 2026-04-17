@@ -18,6 +18,8 @@ router.use(protect, adminAuth);
  *   get:
  *     tags: [Orders]
  *     summary: Get all orders for admin dashboard
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of orders with customer and product data
@@ -46,6 +48,8 @@ router.get('/', getOrders);
  *     tags: [Orders]
  *     summary: Update order status
  *     description: Strict workflow transition (PENDING -> SHIPPED -> DELIVERED)
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id

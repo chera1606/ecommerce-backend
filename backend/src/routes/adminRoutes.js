@@ -19,6 +19,8 @@ router.use(protect, adminAuth);
  *   get:
  *     tags: [Admin]
  *     summary: Get dashboard overview metrics
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Metrics for revenue, orders, and customers
@@ -41,6 +43,8 @@ router.get('/overview', getDashboardOverview);
  *   get:
  *     tags: [Admin]
  *     summary: Get live inventory stream
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of 8 most recent products
@@ -59,6 +63,8 @@ router.get('/products/stream', getLiveInventoryStream);
  *   get:
  *     tags: [Admin]
  *     summary: Get recent orders
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: List of 10 most recent orders formatted for dashboard
@@ -84,6 +90,8 @@ router.get('/orders/recent', getRecentOrders);
  *   get:
  *     tags: [Admin]
  *     summary: Get complete order details
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
