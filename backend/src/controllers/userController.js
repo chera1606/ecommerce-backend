@@ -1,4 +1,6 @@
 const User = require('../models/User');
+const Product = require('../models/Product');
+const bcrypt = require('bcryptjs');
 const asyncHandler = require('../utils/asyncHandler');
 const mongoose = require('mongoose');
 
@@ -213,8 +215,147 @@ const updateUserRole = asyncHandler(async (req, res) => {
     });
 });
 
+// ════════════════════════════════════════════════════════════════════════════
+// NEW: STANDARD USER PROFILE METHODS (Private)
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * @desc    Get logged in user profile
+ * @route   GET /api/users/profile
+ * @access  Private
+ */
+const getUserProfile = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id).select('-password');
+    if (!user) {
+        return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, data: user });
+});
+
+/**
+ * @desc    Update user profile details
+ * @route   PUT /api/users/profile
+ * @access  Private
+ */
+const updateUserProfile = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+        user.firstName = req.body.firstName || user.firstName;
+        user.lastName = req.body.lastName || user.lastName;
+        if (req.body.profilePicture !== undefined) {
+             user.profilePicture = req.body.profilePicture;
+        }
+
+        const updatedUser = await user.save();
+        updatedUser.password = undefined; // Do not return password hash
+        
+        res.json({
+            success: true,
+            data: updatedUser
+        });
+    } else {
+        res.status(404).json({ success: false, message: 'User not found' });
+    }
+});
+
+/**
+ * @desc    Update password manually
+ * @route   PUT /api/users/password
+ * @access  Private
+ */
+const updateUserPassword = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+    const { currentPassword, newPassword } = req.body;
+
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    
+    // Check old password
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+       return res.status(400).json({ success: false, message: 'Incorrect current password' });
+    }
+
+    user.password = newPassword;
+    await user.save();
+    
+    res.json({ success: true, message: 'Password updated successfully' });
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// NEW: USER ADDRESS MANAGEMENT
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * @desc    Add a new saved address
+ * @route   POST /api/users/addresses
+ * @access  Private
+ */
+const addAddress = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+    const { contactName, phone, country, address, isDefault } = req.body;
+
+    if (isDefault) {
+        // Reset all others to false
+        user.addresses.forEach(a => a.isDefault = false);
+    }
+
+    user.addresses.push({ contactName, phone, country, address, isDefault });
+    await user.save();
+
+    res.json({ success: true, data: user.addresses });
+});
+
+/**
+ * @desc    Update a saved address
+ * @route   PUT /api/users/addresses/:id
+ * @access  Private
+ */
+const updateAddress = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+    const addressToFix = user.addresses.id(req.params.id);
+
+    if (!addressToFix) {
+        return res.status(404).json({ success: false, message: 'Address not found' });
+    }
+
+    addressToFix.contactName = req.body.contactName || addressToFix.contactName;
+    addressToFix.phone = req.body.phone || addressToFix.phone;
+    addressToFix.country = req.body.country || addressToFix.country;
+    addressToFix.address = req.body.address || addressToFix.address;
+    
+    if (req.body.isDefault) {
+        user.addresses.forEach(a => {
+           if (a._id.toString() !== req.params.id) a.isDefault = false;
+        });
+        addressToFix.isDefault = true;
+    }
+
+    await user.save();
+    res.json({ success: true, data: user.addresses });
+});
+
+/**
+ * @desc    Delete a saved address
+ * @route   DELETE /api/users/addresses/:id
+ * @access  Private
+ */
+const deleteAddress = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user._id);
+    user.addresses.pull({ _id: req.params.id }); 
+    await user.save();
+    res.json({ success: true, data: user.addresses });
+});
+
 module.exports = {
     getUsers,
     updateUserStatus,
-    updateUserRole
+    updateUserRole,
+    // Standard User Endpoints
+    getUserProfile,
+    updateUserProfile,
+    updateUserPassword,
+    addAddress,
+    updateAddress,
+    deleteAddress
 };

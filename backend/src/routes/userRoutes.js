@@ -16,12 +16,6 @@ router.use(protect, adminAuth);
  *     responses:
  *       200:
  *         description: List of users with QB-formatted IDs
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/User'
  */
 router.get('/', getUsers);
 
