@@ -130,11 +130,19 @@ const createProduct = asyncHandler(async (req, res) => {
     });
 
     // 1. Field Mapping (Canonicalization & Sync)
+    if (productData.productName && !productData.name) productData.name = productData.productName;
+    if (productData.productColor && !productData.color) productData.color = productData.productColor;
+    if (productData.productSize && !productData.sizes) productData.sizes = [productData.productSize];
+    if (productData.technicalSpecs && !productData.specs) productData.specs = productData.technicalSpecs;
+    
     if (productData.price && !productData.unitPrice) productData.unitPrice = productData.price;
     if (productData.stock !== undefined && productData.inventoryLevel === undefined) productData.inventoryLevel = productData.stock;
-    if (productData.technicalSpecs && !productData.specs) productData.specs = productData.technicalSpecs;
 
-    // Ensure legacy fields are synced for DB persistence
+    // Ensure numeric fields are actually numbers (important for multipart form data)
+    if (productData.unitPrice) productData.unitPrice = Number(productData.unitPrice);
+    if (productData.inventoryLevel) productData.inventoryLevel = Number(productData.inventoryLevel);
+
+    // Sync legacy fields
     productData.price = productData.unitPrice;
     productData.stock = productData.inventoryLevel;
     productData.technicalSpecs = productData.specs;
@@ -165,19 +173,18 @@ const createProduct = asyncHandler(async (req, res) => {
         const dataURI = `data:${req.file.mimetype};base64,${b64}`;
         const uploadResult = await cloudinary.uploader.upload(dataURI, { folder: 'efoy_gebya/products' });
         newProduct.imageUrl = uploadResult.secure_url;
+    } else if (productData.imageUrl) {
+        newProduct.imageUrl = productData.imageUrl;
     }
 
     await newProduct.save();
 
-    // Clean response object
-    const responseData = newProduct.toObject();
-    delete responseData._id;
-    delete responseData.__v;
-    delete responseData.price;
-    delete responseData.stock;
-    delete responseData.technicalSpecs;
-
-    res.status(201).json({ success: true, data: responseData });
+    res.status(201).json({ 
+        success: true, 
+        message: 'Product created successfully',
+        data: newProduct,
+        product: newProduct // Alias for frontend
+    });
 });
 
 /**
@@ -200,11 +207,19 @@ const updateProduct = asyncHandler(async (req, res) => {
     });
 
     // Mapping for backward compatibility & Sync
-    if (updateData.price && !updateData.unitPrice) updateData.unitPrice = updateData.price;
-    if (updateData.stock !== undefined && updateData.inventoryLevel === undefined) updateData.inventoryLevel = updateData.stock;
+    if (updateData.productName && !updateData.name) updateData.name = updateData.productName;
+    if (updateData.productColor && !updateData.color) updateData.color = updateData.productColor;
+    if (updateData.productSize && !updateData.sizes) updateData.sizes = [updateData.productSize];
     if (updateData.technicalSpecs && !updateData.specs) updateData.specs = updateData.technicalSpecs;
 
-    // Ensure legacy fields are updated in DB
+    if (updateData.price && !updateData.unitPrice) updateData.unitPrice = updateData.price;
+    if (updateData.stock !== undefined && updateData.inventoryLevel === undefined) updateData.inventoryLevel = updateData.stock;
+
+    // Ensure numerics
+    if (updateData.unitPrice) updateData.unitPrice = Number(updateData.unitPrice);
+    if (updateData.inventoryLevel) updateData.inventoryLevel = Number(updateData.inventoryLevel);
+
+    // Sync legacy fields
     if (updateData.unitPrice !== undefined) updateData.price = updateData.unitPrice;
     if (updateData.inventoryLevel !== undefined) updateData.stock = updateData.inventoryLevel;
     if (updateData.specs !== undefined) updateData.technicalSpecs = updateData.specs;
@@ -234,15 +249,12 @@ const updateProduct = asyncHandler(async (req, res) => {
         logProductChange(updatedProduct._id, req.user._id, 'update_stock', oldProduct.inventoryLevel, updateData.inventoryLevel);
     }
 
-    // Clean response object
-    const responseData = updatedProduct.toObject();
-    delete responseData._id;
-    delete responseData.__v;
-    delete responseData.price;
-    delete responseData.stock;
-    delete responseData.technicalSpecs;
-
-    res.status(200).json({ success: true, data: responseData });
+    res.status(200).json({ 
+        success: true, 
+        message: 'Product updated successfully',
+        data: updatedProduct,
+        product: updatedProduct // Alias for frontend
+    });
 });
 
 /**

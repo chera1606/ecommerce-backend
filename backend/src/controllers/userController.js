@@ -261,16 +261,24 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     if (user) {
         user.firstName = req.body.firstName || user.firstName;
         user.lastName = req.body.lastName || user.lastName;
-        if (req.body.profilePicture !== undefined) {
+        
+        // Map photoUrl from frontend to profilePicture
+        if (req.body.photoUrl !== undefined) {
+             user.profilePicture = req.body.photoUrl;
+        } else if (req.body.profilePicture !== undefined) {
              user.profilePicture = req.body.profilePicture;
         }
 
         const updatedUser = await user.save();
         updatedUser.password = undefined; // Do not return password hash
         
+        const responseData = updatedUser.toObject();
+        responseData.joinedAt = updatedUser.createdAt ? new Date(updatedUser.createdAt).toLocaleDateString() : 'N/A';
+        
         res.json({
             success: true,
-            data: updatedUser
+            data: responseData,
+            user: responseData // Alias for frontend
         });
     } else {
         res.status(404).json({ success: false, message: 'User not found' });
@@ -305,19 +313,23 @@ const updateUserPassword = asyncHandler(async (req, res) => {
  * @route   PATCH /api/users/profile/photo
  * @access  Private
  */
-const { uploadBuffer } = require('../utils/cloudinaryHelper');
 const updateUserProfilePhoto = asyncHandler(async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ success: false, message: 'Please upload a file' });
-    }
-
     const user = await User.findById(req.user._id);
     if (!user) {
         return res.status(404).json({ success: false, message: 'User not found' });
     }
 
     try {
-        const photoUrl = await uploadBuffer(req.file.buffer, 'profiles');
+        let photoUrl;
+        if (req.file) {
+            photoUrl = await uploadBuffer(req.file.buffer, 'profiles');
+        } else if (req.body.photoUrl || req.body.image) {
+            // Handle base64 or string URL from body
+            photoUrl = req.body.photoUrl || req.body.image;
+        } else {
+            return res.status(400).json({ success: false, message: 'No image provided' });
+        }
+
         user.profilePicture = photoUrl;
         await user.save();
 
@@ -326,7 +338,8 @@ const updateUserProfilePhoto = asyncHandler(async (req, res) => {
             message: 'Profile photo updated successfully',
             data: {
                 profilePicture: photoUrl
-            }
+            },
+            user: user // Alias for frontend
         });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Cloudinary upload failed', error: error.message });

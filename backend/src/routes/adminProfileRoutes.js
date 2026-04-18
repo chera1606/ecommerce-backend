@@ -27,6 +27,7 @@ router.use(protect, adminAuth);
  *   put:
  *     tags: [Admin Profile]
  *     summary: Update admin profile
+ *     description: Supports updating name and profile picture. Accepts photoUrl as a string (Base64) or profilePicture.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -37,9 +38,14 @@ router.use(protect, adminAuth);
  *             properties:
  *               firstName: { type: string }
  *               lastName: { type: string }
+ *               photoUrl: { type: string, description: 'Profile picture URL or Base64 string' }
  *     responses:
  *       200:
- *         description: Profile updated
+ *         description: Profile updated successfully. Returns updated user object.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
  */
 router.route('/profile')
     .get(getUserProfile)

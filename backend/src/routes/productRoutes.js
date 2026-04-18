@@ -37,14 +37,16 @@ router.use(protect, adminAuth);
  *           schema:
  *             type: object
  *             properties:
- *               name: { type: string }
+ *               name: { type: string, description: 'productName also accepted' }
  *               sku: { type: string }
  *               classification: { type: string, enum: [SHOES, CLOTHING, ELECTRONICS, ACCESSORIES, CHILDREN, HOME MATERIALS, BEAUTY, FOOTWEAR, APPAREL] }
- *               unitPrice: { type: number }
- *               inventoryLevel: { type: number }
- *               color: { type: string }
- *               specs: { type: string }
- *               image: { type: string, format: binary }
+ *               unitPrice: { type: number, description: 'unitPrice or price accepted' }
+ *               inventoryLevel: { type: number, description: 'inventoryLevel or stock accepted' }
+ *               color: { type: string, description: 'color or productColor accepted' }
+ *               productSize: { type: string }
+ *               technicalSpecs: { type: string, description: 'technicalSpecs or specs accepted' }
+ *               image: { type: string, format: binary, description: 'Binary file or imageUrl string' }
+ *               imageUrl: { type: string }
  *     responses:
  *       201:
  *         description: Product created successfully
@@ -74,8 +76,9 @@ router.post('/', upload.single('image'), createProduct);
  *               name: { type: string }
  *               unitPrice: { type: number }
  *               inventoryLevel: { type: number }
- *               color: { type: string }
- *               specs: { type: string }
+ *               firstName: { type: string }
+ *               lastName: { type: string }
+ *               photoUrl: { type: string, description: 'Profile picture URL or Base64 string' }
  *               image: { type: string, format: binary }
  *     responses:
  *       200:
