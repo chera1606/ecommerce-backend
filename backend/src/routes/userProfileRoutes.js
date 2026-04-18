@@ -122,8 +122,11 @@ router.put('/password', updateUserPassword);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ShippingAddress'
- *               isDefault: { type: boolean }
+ *             allOf:
+ *               - $ref: '#/components/schemas/ShippingAddress'
+ *               - type: object
+ *                 properties:
+ *                   isDefault: { type: boolean }
  *     responses:
  *       200:
  *         description: Address added
@@ -147,8 +150,11 @@ router.post('/addresses', addAddress);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/ShippingAddress'
- *               isDefault: { type: boolean }
+ *             allOf:
+ *               - $ref: '#/components/schemas/ShippingAddress'
+ *               - type: object
+ *                 properties:
+ *                   isDefault: { type: boolean }
  *     responses:
  *       200:
  *         description: Address updated
