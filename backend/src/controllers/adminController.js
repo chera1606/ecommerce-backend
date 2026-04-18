@@ -21,8 +21,9 @@ const getDashboardOverview = async (req, res) => {
 
         res.status(200).json({
             revenue,
-            ordersCount,
-            customersCount
+            orders: ordersCount,
+            customers: customersCount,
+            growth: "+0%" // Placeholder for frontend growth badge
         });
     } catch (error) {
         console.error("Dashboard overview error:", error);
@@ -63,7 +64,7 @@ const getRecentOrders = async (req, res) => {
             };
         });
 
-        res.status(200).json(formattedOrders);
+        res.status(200).json({ orders: formattedOrders });
     } catch (error) {
         console.error("Recent orders error:", error);
         res.status(500).json({ message: "Server Error fetching recent orders", error: error.message });
@@ -84,7 +85,13 @@ const getLiveInventoryStream = async (req, res) => {
             .select('name price imageUrl stock')
             .lean();
 
-        res.status(200).json(products);
+        const formattedProducts = products.map(p => ({
+            ...p,
+            id: p._id,
+            image: p.imageUrl // Map for frontend 'image' field
+        }));
+
+        res.status(200).json({ products: formattedProducts });
     } catch (error) {
         console.error("Inventory stream error:", error);
         res.status(500).json({ message: "Server Error fetching inventory", error: error.message });

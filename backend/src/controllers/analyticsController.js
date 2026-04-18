@@ -129,8 +129,34 @@ const getPerformanceAnalytics = asyncHandler(async (req, res) => {
             statusColor: v.inventoryChurnDays < 15 ? 'red' : (v.inventoryChurnDays < 45 ? 'black' : 'gray')
         }));
 
-    // 5. ASSEMBLE RESPONSE
+    // 5. COUNTS FOR SUMMARY CARDS
+    const [ordersCount, customersCount] = await Promise.all([
+        Order.countDocuments(),
+        User.countDocuments({ role: 'REGULAR' })
+    ]);
+
+    // 6. ASSEMBLE RESPONSE FOR Analytics.jsx
     res.json({
+        revenue: revCurrent,
+        orders: ordersCount,
+        customers: customersCount,
+        growth: growthRate >= 0 ? `+${growthRate}%` : `${growthRate}%`,
+        recentRevenue: revCurrent,
+        categories: topCategories.map((c, i) => ({
+            ...c,
+            color: ['bg-violet-500', 'bg-blue-500', 'bg-amber-500', 'bg-red-500', 'bg-emerald-500'][i % 5]
+        })),
+        topProducts: allProducts
+            .filter(p => (salesRateMap.get(p._id.toString()) || 0) > 0)
+            .map(p => ({
+                id: p._id,
+                name: p.name,
+                sales: Math.round((salesRateMap.get(p._id.toString()) || 0) * 30),
+                image: p.imageUrl
+            }))
+            .sort((a, b) => b.sales - a.sales)
+            .slice(0, 4),
+        // Keep legacy nested structure for backward compatibility/other clients
         success: true,
         data: {
             revenue: {
@@ -139,14 +165,12 @@ const getPerformanceAnalytics = asyncHandler(async (req, res) => {
                 growthRate,
                 hasData: revCurrent > 0
             },
-            topCategories: topCategories.length > 0 ? topCategories : [],
-            assetVelocity: assetVelocity.length > 0 ? assetVelocity : [],
+            topCategories: topCategories,
+            assetVelocity: assetVelocity,
             inventory: {
                 totalValue: inventoryStats[0]?.totalValue || 0,
-                currency: "USD",
-                systemLoad: "Nominal"
-            },
-            products: productsList
+                currency: "USD"
+            }
         }
     });
 });

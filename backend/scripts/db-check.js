@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const Product = require('../src/models/Product');
 const Category = require('../src/models/Category');
+const Order = require('../src/models/Order');
+const User = require('../src/models/User');
 
 dotenv.config();
 
@@ -12,14 +14,18 @@ const checkDB = async () => {
 
         const productCount = await Product.countDocuments();
         const categoryCount = await Category.countDocuments();
+        const orderCount = await Order.countDocuments();
+        const userCount = await User.countDocuments();
 
-        console.log(`Products in DB: ${productCount}`);
-        console.log(`Categories in DB: ${categoryCount}`);
+        console.log(`Products: ${productCount}`);
+        console.log(`Categories: ${categoryCount}`);
+        console.log(`Orders: ${orderCount}`);
+        console.log(`Users (Total): ${userCount}`);
 
-        if (productCount > 0) {
-            const sampleProduct = await Product.findOne();
-            console.log('Sample Product ID:', sampleProduct._id);
-            console.log('Sample Product Name:', sampleProduct.name);
+        if (orderCount > 0) {
+            const sampleOrder = await Order.findOne();
+            console.log('Sample Order Status:', sampleOrder.status);
+            console.log('Sample Order Total:', sampleOrder.totalPrice);
         }
 
         process.exit(0);

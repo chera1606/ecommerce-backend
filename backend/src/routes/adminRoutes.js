@@ -30,8 +30,9 @@ router.use(protect, adminAuth);
  *               type: object
  *               properties:
  *                 revenue: { type: number }
- *                 ordersCount: { type: number }
- *                 customersCount: { type: number }
+ *                 orders: { type: number }
+ *                 customers: { type: number }
+ *                 growth: { type: string }
  *       401:
  *         description: Unauthorized
  */
@@ -51,9 +52,12 @@ router.get('/overview', getDashboardOverview);
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
+ *               type: object
+ *               properties:
+ *                 products:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
  */
 router.get('/products/stream', getLiveInventoryStream);
 
@@ -71,16 +75,19 @@ router.get('/products/stream', getLiveInventoryStream);
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   _id: { type: string }
- *                   customer: { type: string }
- *                   itemsCount: { type: number }
- *                   location: { type: string }
- *                   totalPrice: { type: number }
- *                   createdAt: { type: string }
+ *               type: object
+ *               properties:
+ *                 orders:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id: { type: string }
+ *                       customer: { type: string }
+ *                       itemsCount: { type: number }
+ *                       location: { type: string }
+ *                       totalPrice: { type: number }
+ *                       createdAt: { type: string }
  */
 router.get('/orders/recent', getRecentOrders);
 
