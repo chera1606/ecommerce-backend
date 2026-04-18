@@ -11,7 +11,7 @@ const options = {
     servers: [
       {
         url: 'https://ecommerce-backend-1-87dk.onrender.com',
-        description: 'Production server',
+        description: 'Production server (Use this for frontend integration)',
       },
       {
         url: 'http://localhost:5000',

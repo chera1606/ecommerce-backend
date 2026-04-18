@@ -2,6 +2,7 @@ const Product = require('../models/Product');
 const Order = require('../models/Order');
 const ProductView = require('../models/ProductView');
 const asyncHandler = require('../utils/asyncHandler');
+const mongoose = require('mongoose');
 
 // @desc    Get recommended products
 // @route   GET /api/products/recommended
@@ -70,6 +71,12 @@ const getTopSellers = asyncHandler(async (req, res) => {
 // @desc    Get product by ID
 // @route   GET /api/products/:id
 const getProductById = asyncHandler(async (req, res) => {
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({
+            success: false,
+            message: 'Invalid Product ID format'
+        });
+    }
     const product = await Product.findById(req.params.id).populate('category', 'name');
 
     if (!product) {
