@@ -22,10 +22,14 @@ const getUsers = asyncHandler(async (req, res) => {
 
     // Dynamic match for filtering and search
     const matchQuery = {};
-    if (role) matchQuery.role = role;
-    if (status) matchQuery.status = status;
+    if (role && role.toUpperCase() !== 'ALL' && role !== 'undefined' && role !== 'null') {
+        matchQuery.role = role.toUpperCase();
+    }
+    if (status && status.toUpperCase() !== 'ALL' && status !== 'undefined' && status !== 'null') {
+        matchQuery.status = status.toUpperCase();
+    }
 
-    if (search) {
+    if (search && search !== 'undefined' && search !== 'null') {
         const searchRegex = new RegExp(search, 'i');
         const searchOr = [
             { firstName: searchRegex },
@@ -120,6 +124,7 @@ const getUsers = asyncHandler(async (req, res) => {
         newToday: 0 
     };
     const data = results[0].data || [];
+    const totalCount = results[0].totalCount[0] ? results[0].totalCount[0].count : 0;
 
     res.json({
         success: true,
@@ -129,7 +134,11 @@ const getUsers = asyncHandler(async (req, res) => {
             activeNow: stats.activeNow,
             newToday: stats.newToday
         },
-        data
+        data: data,
+        users: data,
+        total: totalCount,
+        page,
+        pages: Math.ceil(totalCount / limit)
     });
 });
 
