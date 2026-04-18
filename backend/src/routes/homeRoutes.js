@@ -33,23 +33,7 @@ const { getShopProducts } = require('../controllers/shopController');
  *                 data:
  *                   type: array
  *                   items:
- *                     type: object
- *                     properties:
- *                       _id: { type: string }
- *                       name: { type: string }
- *                       image: { type: string }
- *                       parent: { type: string, nullable: true }
- *                       productCount: { type: number }
- *                       isActive: { type: boolean }
- *                       children:
- *                         type: array
- *                         items:
- *                           type: object
- *                           properties:
- *                             _id: { type: string }
- *                             name: { type: string }
- *                             parent: { type: string }
- *                             isActive: { type: boolean }
+ *                     $ref: '#/components/schemas/Category'
  */
 router.get('/categories', getCategories);
 
@@ -73,16 +57,7 @@ router.get('/categories', getCategories);
  *                 data:
  *                   type: array
  *                   items:
- *                     type: object
- *                     properties:
- *                       _id: { type: string }
- *                       name: { type: string }
- *                       rating: { type: number }
- *                       featured: { type: boolean }
- *                       category:
- *                         type: object
- *                         properties:
- *                           name: { type: string }
+ *                     $ref: '#/components/schemas/Product'
  */
 router.get('/products/recommended', getRecommendedProducts);
 
@@ -106,10 +81,13 @@ router.get('/products/recommended', getRecommendedProducts);
  *                 data:
  *                   type: array
  *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ *                 totalSoldData:
+ *                   type: array
+ *                   items:
  *                     type: object
  *                     properties:
  *                       _id: { type: string }
- *                       name: { type: string }
  *                       totalSold: { type: number }
  */
 router.get('/products/top-sellers', getTopSellers);
@@ -138,20 +116,7 @@ router.get('/products/top-sellers', getTopSellers);
  *               properties:
  *                 success: { type: boolean }
  *                 data:
- *                   type: object
- *                   properties:
- *                     name: { type: string }
- *                     price: { type: number }
- *                     description: { type: string }
- *                     images: { type: array, items: { type: string } }
- *                     sizes: { type: array, items: { type: string } }
- *                     colors: { type: array, items: { type: string } }
- *                     stock: { type: number }
- *                     rating: { type: number }
- *                     category:
- *                       type: object
- *                       properties:
- *                         name: { type: string }
+ *                   $ref: '#/components/schemas/Product'
  *       404:
  *         description: Product not found
  */
@@ -178,11 +143,7 @@ router.get('/products/:id', optionalProtect, getProductById);
  *                 data:
  *                   type: array
  *                   items:
- *                     type: object
- *                     properties:
- *                       _id: { type: string }
- *                       name: { type: string }
- *                       price: { type: number }
+ *                     $ref: '#/components/schemas/Product'
  */
 router.get('/users/last-viewed', optionalProtect, getLastViewed);
 
@@ -274,7 +235,10 @@ router.post('/newsletter/subscribe', subscribeNewsletter);
  *                 limit: { type: number }
  *                 totalProducts: { type: number }
  *                 totalPages: { type: number }
- *                 data: { type: array }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
  */
 router.get('/shop/products', getShopProducts);
 

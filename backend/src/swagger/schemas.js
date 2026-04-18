@@ -15,14 +15,14 @@
  *     Product:
  *       type: object
  *       required:
- *         - sku
  *         - name
  *         - unitPrice
  *         - inventoryLevel
  *       properties:
+ *         _id:
+ *           type: string
  *         sku:
  *           type: string
- *           description: Unique Stock Keeping Unit
  *         name:
  *           type: string
  *         classification:
@@ -32,15 +32,54 @@
  *           type: number
  *         inventoryLevel:
  *           type: number
- *         color:
- *           type: string
+ *         price:
+ *           type: number
+ *         stock:
+ *           type: number
  *         imageUrl:
+ *           type: string
+ *         images:
+ *           type: array
+ *           items:
+ *             type: string
+ *         description:
  *           type: string
  *         specs:
  *           type: string
- *         id:
+ *         category:
+ *           type: object
+ *           properties:
+ *             _id: { type: string }
+ *             name: { type: string }
+ *         rating:
+ *           type: number
+ *         featured:
+ *           type: boolean
+ *         sizes:
+ *           type: array
+ *           items: { type: string }
+ *         colors:
+ *           type: array
+ *           items: { type: string }
+ *         salesCount:
+ *           type: number
+ * 
+ *     Category:
+ *       type: object
+ *       properties:
+ *         _id:
  *           type: string
- *           description: QB-XXXX formatted ID
+ *         name:
+ *           type: string
+ *         image:
+ *           type: string
+ *         parent:
+ *           type: string
+ *           nullable: true
+ *         isActive:
+ *           type: boolean
+ *         productCount:
+ *           type: number
  * 
  *     ShippingAddress:
  *       type: object
@@ -87,7 +126,7 @@
  *         - items
  *         - totalPrice
  *       properties:
- *         id:
+ *         _id:
  *           type: string
  *         userId:
  *           type: string
@@ -99,40 +138,25 @@
  *           $ref: '#/components/schemas/ShippingAddress'
  *         urgentDelivery:
  *           type: boolean
- *           default: false
- *           description: Whether urgent delivery (+$5.00 fee) was selected
  *         urgentDeliveryFee:
  *           type: number
- *           example: 5
  *         paymentMethod:
  *           type: string
  *           enum: [TELEBIRR, CHAPA, CASH_ON_DELIVERY, PENDING]
- *           example: TELEBIRR
  *         paymentStatus:
  *           type: string
  *           enum: [UNPAID, PAID, FAILED, REFUNDED]
- *           default: UNPAID
- *         subtotal:
- *           type: number
- *           description: Sum of (price × quantity) for all items
- *         totalAmount:
- *           type: number
  *         totalPrice:
  *           type: number
- *           description: Final total including urgent delivery fee
  *         status:
  *           type: string
  *           enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED]
- *           default: PENDING
- *         priority:
- *           type: boolean
- *           description: true when urgentDelivery is enabled
  * 
  * 
  *     User:
  *       type: object
  *       properties:
- *         id:
+ *         _id:
  *           type: string
  *         firstName:
  *           type: string
@@ -146,6 +170,12 @@
  *         status:
  *           type: string
  *           enum: [ACTIVE, SUSPENDED, PENDING]
+ *         profilePicture:
+ *           type: string
+ *         addresses:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/ShippingAddress'
  * 
  *     UserRegister:
  *       type: object

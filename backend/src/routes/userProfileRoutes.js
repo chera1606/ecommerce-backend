@@ -26,6 +26,14 @@ router.use(protect);
  *     responses:
  *       200:
  *         description: User profile data
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
  *   put:
  *     tags: [User Profile]
  *     summary: Update user profile
@@ -43,6 +51,14 @@ router.use(protect);
  *     responses:
  *       200:
  *         description: Profile updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
  */
 router.route('/profile')
     .get(getUserProfile)
@@ -106,13 +122,7 @@ router.put('/password', updateUserPassword);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required: [contactName, phone, country, address]
- *             properties:
- *               contactName: { type: string }
- *               phone: { type: string }
- *               country: { type: string }
- *               address: { type: string }
+ *             $ref: '#/components/schemas/ShippingAddress'
  *               isDefault: { type: boolean }
  *     responses:
  *       200:
@@ -137,12 +147,7 @@ router.post('/addresses', addAddress);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               contactName: { type: string }
- *               phone: { type: string }
- *               country: { type: string }
- *               address: { type: string }
+ *             $ref: '#/components/schemas/ShippingAddress'
  *               isDefault: { type: boolean }
  *     responses:
  *       200:
