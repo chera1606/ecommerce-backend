@@ -19,6 +19,7 @@ const getCart = asyncHandler(async (req, res) => {
 // @route   POST /api/cart
 const addToCart = asyncHandler(async (req, res) => {
     const { productId, quantity = 1, size, color } = req.body;
+    const normalizedQuantity = Math.max(1, Number(quantity) || 1);
 
     if (!productId) {
         return res.status(400).json({ success: false, message: 'productId is required' });
@@ -31,9 +32,6 @@ const addToCart = asyncHandler(async (req, res) => {
     }
 
     const availableStock = product.inventoryLevel || product.stock || 0;
-    if (availableStock < quantity) {
-        return res.status(400).json({ success: false, message: `Only ${availableStock} items in stock` });
-    }
 
     let cart = await Cart.findOne({ userId: req.user._id });
 
@@ -48,14 +46,25 @@ const addToCart = asyncHandler(async (req, res) => {
                 (item.color || '') === (color || '')
     );
 
+    const existingQuantity = existingIndex > -1 ? Number(cart.items[existingIndex].quantity || 0) : 0;
+    const targetQuantity = existingQuantity + normalizedQuantity;
+    const stockLimit = availableStock > 0 ? availableStock : existingQuantity;
+
+    if (targetQuantity > stockLimit) {
+        return res.status(400).json({
+            success: false,
+            message: `Only ${availableStock} item(s) available in stock`
+        });
+    }
+
     if (existingIndex > -1) {
         // Update quantity
-        cart.items[existingIndex].quantity += quantity;
+        cart.items[existingIndex].quantity = targetQuantity;
     } else {
         // Add new item
         cart.items.push({
             productId,
-            quantity,
+            quantity: normalizedQuantity,
             size: size || null,
             color: color || null,
             price: product.price || product.unitPrice
@@ -87,7 +96,8 @@ const updateCartItem = asyncHandler(async (req, res) => {
     // Stock check
     const product = await Product.findById(item.productId);
     const availableStock = product ? (product.inventoryLevel || product.stock || 0) : 0;
-    if (availableStock < quantity) {
+    const stockLimit = availableStock > 0 ? availableStock : item.quantity;
+    if (quantity > stockLimit) {
         return res.status(400).json({ success: false, message: `Only ${availableStock} items in stock` });
     }
 

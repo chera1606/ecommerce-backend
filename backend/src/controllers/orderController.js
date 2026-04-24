@@ -3,6 +3,21 @@ const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const mongoose = require('mongoose');
 const asyncHandler = require('../utils/asyncHandler');
+const crypto = require('crypto');
+const {
+    notifyAdminsOrderPlaced,
+    notifyAdminsOrderStatusChanged,
+    notifyAdminsOrderCancelledByUser,
+    notifyUserOrderStatusChanged
+} = require('../services/notificationService');
+
+/**
+ * @desc    Generate a professional tracking ID (TRK-XXXX-XXXX)
+ */
+const generateTrackingId = () => {
+    const segment = () => crypto.randomBytes(2).toString('hex').toUpperCase();
+    return `TRK-${segment()}-${segment()}`;
+};
 
 // ═══════════════════════════════════════════════════════════════════════
 // ADMIN-FACING ORDER FUNCTIONS
@@ -18,8 +33,12 @@ const getOrders = asyncHandler(async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
     const search = req.query.search || '';
+    const status = req.query.status || '';
 
     const matchQuery = {};
+    if (status && status.toUpperCase() !== 'ALL') {
+        matchQuery.status = status.toUpperCase();
+    }
     if (search) {
         let orderIdMatch = null;
         if (search.toUpperCase().startsWith('QB-')) {
@@ -73,6 +92,7 @@ const getOrders = asyncHandler(async (req, res) => {
                         { $toUpper: { $substrCP: [{ $toString: '$_id' }, 20, 4] } }
                     ]
                 },
+                trackingId: { $ifNull: ['$trackingId', 'N/A'] },
                 product: { $ifNull: [{ $arrayElemAt: ['$productDetails.name', 0] }, 'Deleted Product'] },
                 total: { $ifNull: ['$totalAmount', '$totalPrice'] },
                 date: '$createdAt'
@@ -106,8 +126,9 @@ const getOrders = asyncHandler(async (req, res) => {
                     { $limit: limit },
                     {
                         $project: {
-                            _id: 0,
+                            _id: 1,
                             orderId: 1,
+                            trackingId: 1,
                             guest: 1,
                             product: 1,
                             total: 1,
@@ -117,7 +138,9 @@ const getOrders = asyncHandler(async (req, res) => {
                             urgentDelivery: 1,
                             paymentMethod: 1,
                             paymentStatus: 1,
-                            shippingAddress: 1
+                            shippingAddress: 1,
+                            items: 1,
+                            productDetails: 1
                         }
                     }
                 ],
@@ -160,7 +183,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     }
     const orderId = req.params.id;
 
-    const statuses = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED'];
+    const statuses = ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'];
 
     if (!statuses.includes(status)) {
         return res.status(400).json({
@@ -174,25 +197,54 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
-    const currentIndex = statuses.indexOf(order.status);
-    const newIndex = statuses.indexOf(status);
+    // Special logic for CANCELLED
+    if (status === 'CANCELLED') {
+        if (order.status === 'DELIVERED') {
+            return res.status(400).json({ success: false, message: 'Cannot cancel a delivered order' });
+        }
+        if (order.status === 'CANCELLED') {
+            return res.status(400).json({ success: false, message: 'Order is already cancelled' });
+        }
 
-    if (newIndex <= currentIndex) {
-        return res.status(400).json({
-            success: false,
-            message: `Cannot move status backwards. Current: ${order.status}, Requested: ${status}`
-        });
-    }
+        // Restore Stock
+        if (Array.isArray(order.items)) {
+            for (const item of order.items) {
+                await Product.findByIdAndUpdate(item.productId, {
+                    $inc: { 
+                        inventoryLevel: item.quantity, 
+                        stock: item.quantity,
+                        salesCount: -item.quantity 
+                    }
+                });
+            }
+        }
+    } else {
+        const currentIndex = statuses.indexOf(order.status);
+        const newIndex = statuses.indexOf(status);
 
-    if (newIndex !== currentIndex + 1) {
-        return res.status(400).json({
-            success: false,
-            message: `Cannot skip statuses. Must follow: PENDING → CONFIRMED → SHIPPED → DELIVERED`
-        });
+        if (order.status === 'CANCELLED') {
+             return res.status(400).json({ success: false, message: 'Cannot reactivate a cancelled order' });
+        }
+
+        if (newIndex <= currentIndex) {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot move status backwards. Current: ${order.status}, Requested: ${status}`
+            });
+        }
+
+        if (newIndex !== currentIndex + 1 && status !== 'CANCELLED') {
+            return res.status(400).json({
+                success: false,
+                message: `Cannot skip statuses. Must follow: PENDING → CONFIRMED → SHIPPED → DELIVERED`
+            });
+        }
     }
 
     order.status = status;
     await order.save();
+
+    await notifyUserOrderStatusChanged({ order, status });
 
     res.json({
         success: true,
@@ -313,6 +365,7 @@ const buyNow = asyncHandler(async (req, res) => {
     // ── 7. Create order ──────────────────────────────────────────────
     const order = await Order.create({
         userId: req.user._id,
+        trackingId: generateTrackingId(),
         items: [{
             productId: product._id,
             quantity: qty,
@@ -346,6 +399,8 @@ const buyNow = asyncHandler(async (req, res) => {
         }
     });
 
+    await notifyAdminsOrderPlaced({ order, totalPrice, source: 'buy-now' });
+
     res.status(201).json({
         success: true,
         message: 'Order placed successfully',
@@ -377,13 +432,24 @@ const checkoutFromCart = asyncHandler(async (req, res) => {
     const {
         urgentDelivery = false,
         paymentMethod = 'PENDING',
-        shippingAddress
+        shippingAddress,
+        selectedItemIds = []
     } = req.body;
 
     // ── 1. Load cart ─────────────────────────────────────────────────
     const cart = await Cart.findOne({ userId: req.user._id }).populate('items.productId');
     if (!cart || cart.items.length === 0) {
         return res.status(400).json({ success: false, message: 'Your cart is empty' });
+    }
+
+    let selectedItems = cart.items;
+    if (Array.isArray(selectedItemIds) && selectedItemIds.length > 0) {
+        const selectedSet = new Set(selectedItemIds.map(String));
+        selectedItems = cart.items.filter(item => selectedSet.has(String(item._id)));
+    }
+
+    if (!selectedItems.length) {
+        return res.status(400).json({ success: false, message: 'Please select at least one cart item to checkout' });
     }
 
     // ── 2. Validate shippingAddress if provided ───────────────────────
@@ -410,7 +476,7 @@ const checkoutFromCart = asyncHandler(async (req, res) => {
     }
 
     // ── 3. Check stock for all items ──────────────────────────────────
-    for (const item of cart.items) {
+    for (const item of selectedItems) {
         const product = item.productId;
         if (!product) {
             return res.status(400).json({ success: false, message: 'A product in your cart no longer exists' });
@@ -425,7 +491,7 @@ const checkoutFromCart = asyncHandler(async (req, res) => {
     }
 
     // ── 4. Build order items ──────────────────────────────────────────
-    const orderItems = cart.items.map(item => ({
+    const orderItems = selectedItems.map(item => ({
         productId: item.productId._id,
         quantity: item.quantity,
         price: item.price,
@@ -433,7 +499,7 @@ const checkoutFromCart = asyncHandler(async (req, res) => {
         color: item.color || undefined
     }));
 
-    const subtotal = cart.totalPrice;
+    const subtotal = selectedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const urgentFee = urgentDelivery ? 5 : 0;
     const totalPrice = subtotal + urgentFee;
 
@@ -452,6 +518,7 @@ const checkoutFromCart = asyncHandler(async (req, res) => {
     // ── 5. Create order ───────────────────────────────────────────────
     const order = await Order.create({
         userId: req.user._id,
+        trackingId: generateTrackingId(),
         items: orderItems,
         shippingAddress: validatedAddress,
         urgentDelivery: Boolean(urgentDelivery),
@@ -466,7 +533,7 @@ const checkoutFromCart = asyncHandler(async (req, res) => {
     });
 
     // ── 6. Deduct stock & clear cart ──────────────────────────────────
-    for (const item of cart.items) {
+    for (const item of selectedItems) {
         await Product.findByIdAndUpdate(item.productId._id, {
             $inc: {
                 inventoryLevel: -item.quantity,
@@ -476,8 +543,11 @@ const checkoutFromCart = asyncHandler(async (req, res) => {
         });
     }
 
-    cart.items = [];
-    cart.totalPrice = 0;
+    await notifyAdminsOrderPlaced({ order, totalPrice, source: 'checkout' });
+
+    const selectedSet = new Set(selectedItems.map(item => String(item._id)));
+    cart.items = cart.items.filter(item => !selectedSet.has(String(item._id)));
+    cart.totalPrice = cart.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     await cart.save();
 
     res.status(201).json({
@@ -566,6 +636,13 @@ const cancelOrder = asyncHandler(async (req, res) => {
 
     order.status = 'CANCELLED';
     await order.save();
+
+    const customerName = `${req.user?.firstName || ''} ${req.user?.lastName || ''}`.trim() || 'A customer';
+    await notifyAdminsOrderCancelledByUser({
+        order,
+        actorName: customerName,
+        actorId: req.user?._id || null
+    });
 
     res.status(200).json({
         success: true,

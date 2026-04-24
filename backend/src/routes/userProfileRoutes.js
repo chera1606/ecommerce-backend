@@ -111,27 +111,6 @@ router.put('/password', updateUserPassword);
 
 /**
  * @openapi
- * /api/users/profile/photo:
- *   patch:
- *     tags: [User Profile]
- *     summary: Update profile photo
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               image: { type: string, format: binary }
- *     responses:
- *       200:
- *         description: Photo updated
- */
-router.patch('/profile/photo', upload.single('image'), updateUserProfilePhoto);
-
-/**
- * @openapi
  * /api/users/addresses:
  *   post:
  *     tags: [User Profile]

@@ -5,6 +5,16 @@ const sendEmail = require('../utils/emailService');
 const { generateOTP } = require('../utils/otpUtility');
 const { otpEmailTemplate, passwordResetTemplate } = require('../utils/mailTemplates');
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeEmail = (value = '') => String(value).trim().toLowerCase();
+const isValidEmail = (value = '') => EMAIL_REGEX.test(normalizeEmail(value));
+const escapeRegExp = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const findUserByEmail = (email) => {
+    const normalizedEmail = normalizeEmail(email);
+    return User.findOne({ email: new RegExp(`^${escapeRegExp(normalizedEmail)}$`, 'i') });
+};
+
 /**
  * @desc    Register a new user
  * @route   POST /api/auth/register
@@ -16,19 +26,26 @@ const registerUser = async (req, res) => {
     }
 
     const { firstName, lastName, email, password, confirmPassword } = req.body;
-    // Strictly define allowed fields to prevent role/status injection
-    const allowedFields = { firstName, lastName, email, password };
+    const normalizedEmail = normalizeEmail(email);
+    const allowedFields = { firstName, lastName, email: normalizedEmail, password };
 
     try {
         if (!firstName || !lastName || !email || !password || !confirmPassword) {
             return res.status(400).json({ success: false, message: 'All fields are required' });
         }
 
+        if (!isValidEmail(email)) {
+            return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
+        }
+
         if (password !== confirmPassword) {
             return res.status(400).json({ success: false, message: 'Passwords do not match' });
         }
+        if (password.length < 8) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
+        }
 
-        const userExists = await User.findOne({ email });
+        const userExists = await findUserByEmail(normalizedEmail);
         if (userExists) {
             return res.status(400).json({ success: false, message: 'User already exists' });
         }
@@ -45,8 +62,6 @@ const registerUser = async (req, res) => {
     }
 };
 
-
-
 /**
  * @desc    Login user
  * @route   POST /api/auth/login
@@ -54,19 +69,34 @@ const registerUser = async (req, res) => {
  */
 const loginUser = async (req, res) => {
     const { email, password } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
     try {
         if (!email || !password) {
             return res.status(400).json({ success: false, message: 'Email and password are required' });
         }
 
-        const user = await User.findOne({ email });
+        if (!isValidEmail(email)) {
+            return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
+        }
 
-        if (user && (await user.matchPassword(password))) {
+        const user = await findUserByEmail(normalizedEmail);
+
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'Invalid email or password' });
+        }
+
+        if (user.status === 'SUSPENDED') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Your account has been suspended. Please contact support.' 
+            });
+        }
+
+        if (await user.matchPassword(password)) {
             const accessToken = generateAccessToken(user._id, user.role);
             const refreshToken = generateRefreshToken(user._id);
 
-            // Store refresh token in user document
             user.refreshToken = refreshToken;
             await user.save();
 
@@ -112,7 +142,11 @@ const refreshToken = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Invalid refresh token mapping' });
         }
 
-        const newAccessToken = generateAccessToken(user._id);
+        if (user.status === 'SUSPENDED') {
+            return res.status(403).json({ success: false, message: 'Account suspended' });
+        }
+
+        const newAccessToken = generateAccessToken(user._id, user.role);
         return res.json({ success: true, data: { accessToken: newAccessToken } });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
@@ -148,19 +182,30 @@ const logoutUser = async (req, res) => {
  */
 const forgotPassword = async (req, res) => {
     const { email } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
     try {
         if (!email) {
             return res.status(400).json({ success: false, message: 'Email is required' });
         }
 
-        const user = await User.findOne({ email });
+        if (!isValidEmail(email)) {
+            return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
+        }
+
+        const user = await findUserByEmail(normalizedEmail);
 
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        // Generate 6-digit OTP for password reset
+        if (user.status === 'SUSPENDED') {
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Your account has been suspended. Please contact support.' 
+            });
+        }
+
         const otp = generateOTP();
         user.otp = otp;
         user.otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
@@ -184,7 +229,7 @@ const forgotPassword = async (req, res) => {
             return res.status(500).json({ 
                 success: false, 
                 message: 'Email could not be sent',
-                error: err.message // Providing actual error for debugging
+                error: err.message
             });
         }
     } catch (error) {
@@ -199,23 +244,30 @@ const forgotPassword = async (req, res) => {
  */
 const resetPassword = async (req, res) => {
     const { email, otp, newPassword, confirmPassword } = req.body;
+    const normalizedEmail = normalizeEmail(email);
 
     try {
         if (!email || !otp || !newPassword || !confirmPassword) {
             return res.status(400).json({ success: false, message: 'All fields are required' });
         }
 
+        if (!isValidEmail(email)) {
+            return res.status(400).json({ success: false, message: 'Please enter a valid email address' });
+        }
+
         if (newPassword !== confirmPassword) {
             return res.status(400).json({ success: false, message: 'Passwords do not match' });
         }
+        if (newPassword.length < 8) {
+            return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
+        }
 
-        const user = await User.findOne({ email });
+        const user = await findUserByEmail(normalizedEmail);
 
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        // Validate OTP
         if (user.otp !== otp) {
             return res.status(400).json({ success: false, message: 'Invalid OTP' });
         }
@@ -224,7 +276,6 @@ const resetPassword = async (req, res) => {
             return res.status(400).json({ success: false, message: 'OTP expired' });
         }
 
-        // Update password securely (Hashing is handled by User model pre-save hook)
         user.password = newPassword;
         user.otp = undefined;
         user.otpExpires = undefined;

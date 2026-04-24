@@ -166,7 +166,7 @@
  *           type: string
  *         role:
  *           type: string
- *           enum: [REGULAR, PRIVILEGED, ADMIN]
+ *           enum: [REGULAR, PRIVILEGED, ADMIN, SUPER_ADMIN]
  *         status:
  *           type: string
  *           enum: [ACTIVE, SUSPENDED, PENDING]

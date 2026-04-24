@@ -10,8 +10,59 @@ const {
     getOrderDetails
 } = require('../controllers/adminController');
 
+const {
+    getContactMessages,
+    updateMessageStatus,
+    deleteContactMessage
+} = require('../controllers/contactController');
+
 // All endpoints in this file are protected and require the 'admin' role
 router.use(protect, adminAuth);
+
+router.delete('/messages/:id', deleteContactMessage);
+
+/**
+ * @openapi
+ * /api/admin/messages:
+ *   get:
+ *     tags: [Admin]
+ *     summary: Get all contact messages
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of messages
+ */
+router.get('/messages', getContactMessages);
+router.delete('/messages/:id', deleteContactMessage);
+
+/**
+ * @openapi
+ * /api/admin/messages/{id}/status:
+ *   patch:
+ *     tags: [Admin]
+ *     summary: Update message status
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [status]
+ *             properties:
+ *               status: { type: string, enum: [NEW, READ, RESPONDED] }
+ *     responses:
+ *       200:
+ *         description: Status updated
+ */
+router.patch('/messages/:id/status', updateMessageStatus);
 
 /**
  * @openapi

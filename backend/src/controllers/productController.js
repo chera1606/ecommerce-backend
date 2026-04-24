@@ -28,14 +28,24 @@ const generateSKU = () => {
  * @route   GET /api/admin/products
  */
 const getProducts = asyncHandler(async (req, res) => {
-    const { search, classification, minPrice, maxPrice, sort, page = 1, limit = 10 } = req.query;
+    const { search, classification, minPrice, maxPrice, sort, page = 1, limit = 10, stockStatus } = req.query;
     const pageNumber = parseInt(page, 10) || 1;
     const limitNumber = parseInt(limit, 10) || 10;
     const skip = (pageNumber - 1) * limitNumber;
 
     let matchQuery = {};
     if (search) matchQuery.name = { $regex: search, $options: 'i' };
-    if (classification) matchQuery.classification = classification;
+    if (classification && classification !== 'ALL') matchQuery.classification = classification;
+
+    if (stockStatus) {
+        if (stockStatus === 'IN_STOCK') {
+            matchQuery.inventoryLevel = { $gte: 1 };
+        } else if (stockStatus === 'LOW_STOCK') {
+            matchQuery.inventoryLevel = { $gt: 0, $lt: 10 };
+        } else if (stockStatus === 'OUT_OF_STOCK') {
+            matchQuery.inventoryLevel = { $lte: 0 };
+        }
+    }
     
     // Use unitPrice for filtering internally while supporting legacy price query
     if (minPrice !== undefined || maxPrice !== undefined) {
@@ -65,6 +75,7 @@ const getProducts = asyncHandler(async (req, res) => {
                                     { $toUpper: { $substrCP: [{ $toString: '$_id' }, 20, 4] } } 
                                 ] 
                             },
+                            internalId: "$_id",
                             product: {
                                 name: '$name',
                                 color: { $ifNull: ['$color', 'N/A'] },
@@ -147,6 +158,10 @@ const createProduct = asyncHandler(async (req, res) => {
     productData.stock = productData.inventoryLevel;
     productData.technicalSpecs = productData.specs;
 
+    // Force rating to 0 for new products - should only be calculated from reviews
+    productData.rating = 0;
+    productData.numReviews = 0;
+
     // 2. SKU Logic
     if (!productData.sku || productData.sku.trim() === '') {
         let isUnique = false;
@@ -223,6 +238,10 @@ const updateProduct = asyncHandler(async (req, res) => {
     if (updateData.unitPrice !== undefined) updateData.price = updateData.unitPrice;
     if (updateData.inventoryLevel !== undefined) updateData.stock = updateData.inventoryLevel;
     if (updateData.specs !== undefined) updateData.technicalSpecs = updateData.specs;
+
+    // Prevent manual updates to rating and reviews - these should be handled by the review system
+    delete updateData.rating;
+    delete updateData.numReviews;
 
     // SKU Modification check
     if (updateData.sku && updateData.sku !== oldProduct.sku) {

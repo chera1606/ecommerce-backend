@@ -23,6 +23,12 @@ const orderItemSchema = new mongoose.Schema({
 
 // ─── Main Order Schema ────────────────────────────────────────────────────────
 const orderSchema = new mongoose.Schema({
+    trackingId: {
+        type: String,
+        unique: true,
+        uppercase: true,
+        trim: true
+    },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',

@@ -5,14 +5,24 @@ const path = require('path');
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png|gif/;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
+    const allowedMimeTypes = [
+        'image/jpeg',
+        'image/jpg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/avif',
+        'image/heic',
+        'image/heif'
+    ];
 
-    if (extname && mimetype) {
+    const extname = allowedMimeTypes.includes(`image/${path.extname(file.originalname).toLowerCase().replace('.', '')}`);
+    const mimetype = file.mimetype.startsWith('image/');
+
+    if (mimetype && (extname || allowedMimeTypes.includes(file.mimetype))) {
         return cb(null, true);
     } else {
-        cb(new Error('Only Images (JPG, PNG, GIF) are allowed!'), false);
+        cb(new Error('Only image files are allowed (JPG, PNG, GIF, WEBP, AVIF, HEIC, HEIF).'), false);
     }
 };
 

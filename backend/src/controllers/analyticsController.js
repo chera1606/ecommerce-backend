@@ -4,7 +4,7 @@ const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 
 /**
- * @desc    Get performance analytics for the admin dashboard
+ * @desc    Get marketing-focused performance analytics
  * @route   GET /api/admin/analytics/performance
  * @access  Private/Admin
  */
@@ -13,14 +13,14 @@ const getPerformanceAnalytics = asyncHandler(async (req, res) => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
-    // 1. REVENUE CALCULATION (Delivered Orders Only)
+    // 1. FINANCIAL SUMMARY
     const revenueStats = await Order.aggregate([
         { $match: { status: 'DELIVERED', createdAt: { $gte: sixtyDaysAgo } } },
         {
             $facet: {
                 current: [
                     { $match: { createdAt: { $gte: thirtyDaysAgo } } },
-                    { $group: { _id: null, total: { $sum: { $ifNull: ['$totalAmount', '$totalPrice'] } } } }
+                    { $group: { _id: null, total: { $sum: { $ifNull: ['$totalAmount', '$totalPrice'] } }, count: { $sum: 1 } } }
                 ],
                 previous: [
                     { $match: { createdAt: { $lt: thirtyDaysAgo } } },
@@ -31,15 +31,60 @@ const getPerformanceAnalytics = asyncHandler(async (req, res) => {
     ]);
 
     const revCurrent = revenueStats[0]?.current[0]?.total || 0;
+    const ordersCurrent = revenueStats[0]?.current[0]?.count || 0;
     const revPrev = revenueStats[0]?.previous[0]?.total || 0;
     let growthRate = 0;
     if (revPrev > 0) {
-        growthRate = Number(((revCurrent - revPrev) / revPrev * 100).toFixed(2));
+        growthRate = Number(((revCurrent - revPrev) / revPrev * 100).toFixed(1));
     } else if (revCurrent > 0) {
         growthRate = 100;
     }
 
-    // 2. TOP CATEGORIES (Derived from Real Sales)
+    // 2. REVENUE & ORDER TRENDS (Historical)
+    const dailyRevenue = await Order.aggregate([
+        { $match: { status: 'DELIVERED', createdAt: { $gte: thirtyDaysAgo } } },
+        {
+            $group: {
+                _id: { $dateToString: { format: "%d %b", date: "$createdAt" } },
+                revenue: { $sum: { $ifNull: ['$totalAmount', '$totalPrice'] } },
+                orders: { $sum: 1 },
+                timestamp: { $first: "$createdAt" }
+            }
+        },
+        { $sort: { timestamp: 1 } },
+        { $project: { name: "$_id", revenue: 1, orders: 1, _id: 0 } }
+    ]);
+
+    // 3. MARKETING COHORT (New vs Returning)
+    // Retention is key for marketing
+    const customerOrders = await Order.aggregate([
+        { $match: { status: 'DELIVERED' } },
+        { $group: { _id: "$userId", orderCount: { $sum: 1 } } }
+    ]);
+
+    const returningCount = customerOrders.filter(c => c.orderCount > 1).length;
+    const newCount = customerOrders.filter(c => c.orderCount === 1).length;
+
+    const retentionStats = [
+        { name: 'Returning', value: returningCount, color: '#10b981' },
+        { name: 'New Customers', value: newCount, color: '#3b82f6' }
+    ];
+
+    // 4. CUSTOMER ACQUISITION (Signups Growth)
+    const dailySignups = await User.aggregate([
+        { $match: { role: 'REGULAR', createdAt: { $gte: thirtyDaysAgo } } },
+        {
+            $group: {
+                _id: { $dateToString: { format: "%d %b", date: "$createdAt" } },
+                count: { $sum: 1 },
+                timestamp: { $first: "$createdAt" }
+            }
+        },
+        { $sort: { timestamp: 1 } },
+        { $project: { name: "$_id", count: 1, _id: 0 } }
+    ]);
+
+    // 5. MARKET SHARE (Category Performance)
     const categoryStats = await Order.aggregate([
         { $match: { status: 'DELIVERED' } },
         { $unwind: '$items' },
@@ -55,122 +100,39 @@ const getPerformanceAnalytics = asyncHandler(async (req, res) => {
         {
             $group: {
                 _id: '$productInfo.classification',
-                soldQuantity: { $sum: '$items.quantity' }
-            }
-        }
-    ]);
-
-    const totalSold = categoryStats.reduce((acc, cat) => acc + cat.soldQuantity, 0);
-    const topCategories = categoryStats
-        .map(cat => ({
-            name: cat._id || 'UNCATEGORIZED',
-            percentage: totalSold > 0 ? Math.round((cat.soldQuantity / totalSold) * 100) : 0
-        }))
-        .sort((a, b) => b.percentage - a.percentage);
-
-    // 3. ASSET VELOCITY (Real Sales Frequency)
-    // First, get sales rate for each product in the last 30 days
-    const dailySalesStats = await Order.aggregate([
-        { $match: { status: 'DELIVERED', createdAt: { $gte: thirtyDaysAgo } } },
-        { $unwind: '$items' },
-        {
-            $group: {
-                _id: '$items.productId',
-                totalSold: { $sum: '$items.quantity' }
+                revenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } }
             }
         },
-        {
-            $project: {
-                dailySalesRate: { $divide: ['$totalSold', 30] }
-            }
-        }
+        { $sort: { revenue: -1 } }
     ]);
 
-    // Map sales rate to products for easy lookup
-    const salesRateMap = new Map(dailySalesStats.map(s => [s._id.toString(), s.dailySalesRate]));
+    const totalRev = categoryStats.reduce((acc, cat) => acc + cat.revenue, 0);
+    const marketShare = categoryStats.map((cat, i) => ({
+        name: cat._id || 'N/A',
+        value: cat.revenue,
+        percentage: totalRev > 0 ? Math.round((cat.revenue / totalRev) * 100) : 0,
+        color: ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'][i % 5]
+    })).slice(0, 5);
 
-    // 4. INVENTORY & PRODUCT LIST (Product Collection Only)
-    const inventoryStats = await Product.aggregate([
-        {
-            $group: {
-                _id: null,
-                totalValue: { $sum: { $multiply: ['$inventoryLevel', '$unitPrice'] } }
-            }
-        }
-    ]);
+    // 6. COUNTS
+    const totalOrders = await Order.countDocuments();
+    const totalCustomers = await User.countDocuments({ role: 'REGULAR' });
 
-    const allProducts = await Product.find().lean();
-    
-    const productsList = allProducts.map(p => ({
-        id: `#QB-${p._id.toString().slice(-4).toUpperCase()}`,
-        name: p.name,
-        color: p.color || 'N/A',
-        inventoryLevel: p.inventoryLevel,
-        unitPrice: p.unitPrice,
-        thumbnail: p.imageUrl || '',
-        isLowStock: p.inventoryLevel < 5
-    }));
-
-    // Calculate Velocity for Top Items
-    const assetVelocity = allProducts
-        .map(p => {
-            const rate = salesRateMap.get(p._id.toString()) || 0;
-            return {
-                productName: p.name,
-                dailySalesRate: rate,
-                inventoryChurnDays: rate > 0 ? Math.ceil(p.inventoryLevel / rate) : null
-            };
-        })
-        .filter(p => p.dailySalesRate > 0) // Only show items with real movement
-        .sort((a, b) => (a.inventoryChurnDays || Infinity) - (b.inventoryChurnDays || Infinity))
-        .slice(0, 5)
-        .map(v => ({
-            productName: v.productName,
-            inventoryChurnDays: v.inventoryChurnDays,
-            statusColor: v.inventoryChurnDays < 15 ? 'red' : (v.inventoryChurnDays < 45 ? 'black' : 'gray')
-        }));
-
-    // 5. COUNTS FOR SUMMARY CARDS
-    const [ordersCount, customersCount] = await Promise.all([
-        Order.countDocuments(),
-        User.countDocuments({ role: 'REGULAR' })
-    ]);
-
-    // 6. ASSEMBLE RESPONSE FOR Analytics.jsx
-    res.json({
-        revenue: revCurrent,
-        orders: ordersCount,
-        customers: customersCount,
-        growth: growthRate >= 0 ? `+${growthRate}%` : `${growthRate}%`,
-        recentRevenue: revCurrent,
-        categories: topCategories.map((c, i) => ({
-            ...c,
-            color: ['bg-violet-500', 'bg-blue-500', 'bg-amber-500', 'bg-red-500', 'bg-emerald-500'][i % 5]
-        })),
-        topProducts: allProducts
-            .filter(p => (salesRateMap.get(p._id.toString()) || 0) > 0)
-            .map(p => ({
-                id: p._id,
-                name: p.name,
-                sales: Math.round((salesRateMap.get(p._id.toString()) || 0) * 30),
-                image: p.imageUrl
-            }))
-            .sort((a, b) => b.sales - a.sales)
-            .slice(0, 4),
-        // Keep legacy nested structure for backward compatibility/other clients
+    res.status(200).json({
         success: true,
         data: {
-            revenue: {
-                total: revCurrent,
-                currency: "USD",
-                growthRate,
-                hasData: revCurrent > 0
+            kpi: {
+                revenue: revCurrent,
+                orders: totalOrders,
+                customers: totalCustomers,
+                growth: growthRate,
+                avgOrderValue: ordersCurrent > 0 ? Math.round(revCurrent / ordersCurrent) : 0
             },
-            topCategories: topCategories,
-            assetVelocity: assetVelocity,
-            inventory: {
-                totalValue: inventoryStats[0]?.totalValue || 0,
-                currency: "USD"
+            charts: {
+                revenueTrends: dailyRevenue.length > 0 ? dailyRevenue : [{ name: 'Start', revenue: 0 }, { name: 'End', revenue: 0 }],
+                retention: retentionStats,
+                marketShare: marketShare,
+                signupGrowth: dailySignups
             }
         }
     });

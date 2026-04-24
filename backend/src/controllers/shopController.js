@@ -19,11 +19,16 @@ const getShopProducts = asyncHandler(async (req, res) => {
     } = req.query;
 
     const pageNumber = Math.max(1, parseInt(page));
-    const limitNumber = Math.min(50, Math.max(1, parseInt(limit)));
+    const limitNumber = Math.min(200, Math.max(1, parseInt(limit)));
     const skip = (pageNumber - 1) * limitNumber;
 
     // Build filter query
-    const filter = {};
+    const filter = {
+        imageUrl: { 
+            $nin: [null, '', undefined, 'null', 'undefined'],
+            $not: /^\s*$/ 
+        }
+    };
 
     if (search) {
         filter.$or = [
@@ -41,9 +46,9 @@ const getShopProducts = asyncHandler(async (req, res) => {
     }
 
     if (minPrice !== undefined || maxPrice !== undefined) {
-        filter.price = {};
-        if (minPrice !== undefined) filter.price.$gte = Number(minPrice);
-        if (maxPrice !== undefined) filter.price.$lte = Number(maxPrice);
+        filter.unitPrice = {};
+        if (minPrice !== undefined) filter.unitPrice.$gte = Number(minPrice);
+        if (maxPrice !== undefined) filter.unitPrice.$lte = Number(maxPrice);
     }
 
     if (featured === 'true') {
@@ -62,9 +67,9 @@ const getShopProducts = asyncHandler(async (req, res) => {
 
     // Build sort option
     let sortOption = {};
-    if (sort === 'price_asc') sortOption = { price: 1 };
-    else if (sort === 'price_desc') sortOption = { price: -1 };
-    else if (sort === 'rating') sortOption = { rating: -1 };
+    if (sort === 'price-low' || sort === 'price_asc') sortOption = { unitPrice: 1 };
+    else if (sort === 'price-high' || sort === 'price_desc') sortOption = { unitPrice: -1 };
+    else if (sort === 'trending' || sort === 'rating') sortOption = { rating: -1, salesCount: -1 };
     else sortOption = { createdAt: -1 }; // newest default
 
     const [products, totalCount] = await Promise.all([

@@ -4,14 +4,39 @@ const { optionalProtect } = require('../middleware/authMiddleware');
 
 const { 
     getRecommendedProducts, 
+    getNewArrivals,
     getTopSellers, 
     getProductById 
 } = require('../controllers/homeProductController');
 
 const { getCategories } = require('../controllers/categoryController');
-const { subscribeNewsletter } = require('../controllers/newsletterController');
 const { getLastViewed } = require('../controllers/userActivityController');
 const { getShopProducts } = require('../controllers/shopController');
+const { sendContactMessage } = require('../controllers/contactController');
+
+/**
+ * @openapi
+ * /api/contact:
+ *   post:
+ *     tags: [Home]
+ *     summary: Send a contact message
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, email, message]
+ *             properties:
+ *               name: { type: string }
+ *               email: { type: string }
+ *               message: { type: string }
+ *     responses:
+ *       201:
+ *         description: Message sent successfully
+ */
+router.post('/contact', sendContactMessage);
 
 /**
  * @openapi
@@ -36,6 +61,30 @@ const { getShopProducts } = require('../controllers/shopController');
  *                     $ref: '#/components/schemas/Category'
  */
 router.get('/categories', getCategories);
+
+/**
+ * @openapi
+ * /api/products/new-arrivals:
+ *   get:
+ *     tags: [Home]
+ *     summary: Get new arrivals products
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: List of newly added products
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 count: { type: number }
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ */
+router.get('/products/new-arrivals', getNewArrivals);
 
 /**
  * @openapi
@@ -147,32 +196,7 @@ router.get('/products/:id', optionalProtect, getProductById);
  */
 router.get('/users/last-viewed', optionalProtect, getLastViewed);
 
-/**
- * @openapi
- * /api/newsletter/subscribe:
- *   post:
- *     tags: [Home]
- *     summary: Subscribe to newsletter
- *     security: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [email]
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *                 example: test@example.com
- *     responses:
- *       200:
- *         description: Subscribed successfully
- *       400:
- *         description: Email already subscribed
- */
-router.post('/newsletter/subscribe', subscribeNewsletter);
+
 
 /**
  * @openapi

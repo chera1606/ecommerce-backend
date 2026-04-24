@@ -30,6 +30,40 @@ const subscribeNewsletter = asyncHandler(async (req, res) => {
     });
 });
 
+// @desc    Get all subscribers (Admin)
+// @route   GET /api/admin/newsletter
+const getSubscribers = asyncHandler(async (req, res) => {
+    const subscribers = await Newsletter.find().sort({ subscribedAt: -1 });
+
+    res.status(200).json({
+        success: true,
+        count: subscribers.length,
+        data: subscribers
+    });
+});
+
+// @desc    Delete a subscriber (Admin)
+// @route   DELETE /api/admin/newsletter/:id
+const deleteSubscriber = asyncHandler(async (req, res) => {
+    const subscriber = await Newsletter.findById(req.params.id);
+
+    if (!subscriber) {
+        return res.status(404).json({
+            success: false,
+            message: 'Subscriber not found'
+        });
+    }
+
+    await subscriber.deleteOne();
+
+    res.status(200).json({
+        success: true,
+        message: 'Subscriber removed'
+    });
+});
+
 module.exports = {
-    subscribeNewsletter
+    subscribeNewsletter,
+    getSubscribers,
+    deleteSubscriber
 };

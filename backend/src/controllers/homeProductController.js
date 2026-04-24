@@ -9,6 +9,10 @@ const mongoose = require('mongoose');
 const getRecommendedProducts = asyncHandler(async (req, res) => {
     // Return products that are featured OR have high rating
     const products = await Product.find({
+        imageUrl: { 
+            $nin: [null, '', undefined, 'null', 'undefined'],
+            $not: /^\s*$/ 
+        },
         $or: [
             { featured: true },
             { rating: { $gte: 4 } }
@@ -17,6 +21,26 @@ const getRecommendedProducts = asyncHandler(async (req, res) => {
     .sort({ rating: -1 })
     .limit(10)
     .populate('category', 'name');
+
+    res.status(200).json({
+        success: true,
+        count: products.length,
+        data: products
+    });
+});
+
+// @desc    Get new arrivals
+// @route   GET /api/products/new-arrivals
+const getNewArrivals = asyncHandler(async (req, res) => {
+    const products = await Product.find({
+        imageUrl: { 
+            $nin: [null, '', undefined, 'null', 'undefined'],
+            $not: /^\s*$/ 
+        }
+    })
+        .sort({ createdAt: -1 })
+        .limit(10)
+        .populate('category', 'name');
 
     res.status(200).json({
         success: true,
@@ -39,7 +63,7 @@ const getTopSellers = asyncHandler(async (req, res) => {
         },
         { $sort: { totalSold: -1 } },
         { $limit: 10 },
-        {
+        { 
             $lookup: {
                 from: 'products',
                 localField: '_id',
@@ -48,15 +72,25 @@ const getTopSellers = asyncHandler(async (req, res) => {
             }
         },
         { $unwind: '$productDetails' },
+        { $match: { 'productDetails.imageUrl': { 
+            $nin: [null, '', undefined, 'null', 'undefined'],
+            $not: /^\s*$/ 
+        } } },
         {
             $project: {
                 _id: 1,
                 totalSold: 1,
+                sold: '$totalSold',
                 name: '$productDetails.name',
                 price: '$productDetails.price',
+                unitPrice: '$productDetails.unitPrice',
+                inventoryLevel: '$productDetails.inventoryLevel',
+                stock: '$productDetails.stock',
                 imageUrl: '$productDetails.imageUrl',
                 rating: '$productDetails.rating',
-                category: '$productDetails.category'
+                category: '$productDetails.category',
+                originalPrice: '$productDetails.originalPrice',
+                isFreeShipping: '$productDetails.isFreeShipping'
             }
         }
     ]);
@@ -101,6 +135,7 @@ const getProductById = asyncHandler(async (req, res) => {
 
 module.exports = {
     getRecommendedProducts,
+    getNewArrivals,
     getTopSellers,
     getProductById
 };

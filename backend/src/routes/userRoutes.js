@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { getUsers, updateUserStatus, updateUserRole } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
-const { adminAuth } = require('../middleware/roleMiddleware');
+const { adminAuth, superAdminAuth } = require('../middleware/roleMiddleware');
 
-// All routes are protected and require admin role
-router.use(protect, adminAuth);
+// All routes are protected
+router.use(protect);
 
 /**
  * @openapi
@@ -19,7 +19,7 @@ router.use(protect, adminAuth);
  *       200:
  *         description: List of users with QB-formatted IDs
  */
-router.get('/', getUsers);
+router.get('/', adminAuth, getUsers);
 
 /**
  * @openapi
@@ -47,7 +47,7 @@ router.get('/', getUsers);
  *       200:
  *         description: Status updated successfully
  */
-router.patch('/:id/status', updateUserStatus);
+router.patch('/:id/status', adminAuth, updateUserStatus);
 
 /**
  * @openapi
@@ -70,11 +70,11 @@ router.patch('/:id/status', updateUserStatus);
  *             type: object
  *             required: [role]
  *             properties:
- *               role: { type: string, enum: [REGULAR, PRIVILEGED, ADMIN] }
+ *               role: { type: string, enum: [REGULAR, PRIVILEGED, ADMIN, SUPER_ADMIN] }
  *     responses:
  *       200:
  *         description: Role updated successfully
  */
-router.patch('/:id/role', updateUserRole);
+router.patch('/:id/role', superAdminAuth, updateUserRole);
 
 module.exports = router;

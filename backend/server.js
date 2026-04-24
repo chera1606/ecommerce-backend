@@ -69,6 +69,10 @@ app.use('/api/admin/products', productRoutes);
 const homeRoutes = require('./src/routes/homeRoutes');
 app.use('/api', homeRoutes);
 
+// Review Routes (Public GET, Protected POST)
+const reviewRoutes = require('./src/routes/reviewRoutes');
+app.use('/api/products/:id/reviews', reviewRoutes);
+
 // Cart Routes (Protected)
 const cartRoutes = require('./src/routes/cartRoutes');
 app.use('/api/cart', cartRoutes);
@@ -81,7 +85,9 @@ app.use('/api/orders', userOrderRoutes);
 const userProfileRoutes = require('./src/routes/userProfileRoutes');
 app.use('/api/users', userProfileRoutes);
 
-
+// Notification Routes (Protected)
+const notificationRoutes = require('./src/routes/notificationRoutes');
+app.use('/api/notifications', notificationRoutes);
 // Error Middleware
 const { notFound, errorHandler } = require('./src/middleware/errorMiddleware');
 app.use(notFound);

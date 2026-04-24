@@ -9,21 +9,41 @@ const Product = require('../models/Product');
  */
 const getDashboardOverview = async (req, res) => {
     try {
-        const [revenueData, ordersCount, customersCount] = await Promise.all([
+        const now = new Date();
+        const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+        const [revenueData, ordersCount, customersCount, productsCount, lastMonthRevenueData] = await Promise.all([
             Order.aggregate([
-                { $group: { _id: null, totalRevenue: { $sum: "$totalPrice" } } }
+                { $match: { status: 'DELIVERED', createdAt: { $gte: firstDayThisMonth } } },
+                { $group: { _id: null, totalRevenue: { $sum: { $ifNull: ["$totalPrice", "$totalAmount"] } } } }
             ]),
             Order.countDocuments(),
-            User.countDocuments({ role: 'REGULAR' })
+            User.countDocuments({ role: 'REGULAR' }),
+            Product.countDocuments(),
+            Order.aggregate([
+                { $match: { status: 'DELIVERED', createdAt: { $gte: firstDayLastMonth, $lt: firstDayThisMonth } } },
+                { $group: { _id: null, totalRevenue: { $sum: { $ifNull: ["$totalPrice", "$totalAmount"] } } } }
+            ])
         ]);
 
         const revenue = revenueData.length > 0 ? revenueData[0].totalRevenue : 0;
+        const lastMonthRevenue = lastMonthRevenueData.length > 0 ? lastMonthRevenueData[0].totalRevenue : 0;
+
+        let growth = "+0%";
+        if (lastMonthRevenue > 0) {
+            const growthVal = ((revenue - lastMonthRevenue) / lastMonthRevenue) * 100;
+            growth = `${growthVal >= 0 ? '+' : ''}${growthVal.toFixed(1)}%`;
+        } else if (revenue > 0) {
+            growth = "+100%";
+        }
 
         res.status(200).json({
             revenue,
             orders: ordersCount,
             customers: customersCount,
-            growth: "+0%" // Placeholder for frontend growth badge
+            products: productsCount,
+            growth
         });
     } catch (error) {
         console.error("Dashboard overview error:", error);
@@ -58,8 +78,9 @@ const getRecentOrders = async (req, res) => {
                 _id: order._id,
                 customer: customerName,
                 itemsCount,
-                location: order.location || 'N/A',
+                location: order.shippingAddress?.address || 'N/A',
                 totalPrice: order.totalPrice || 0,
+                status: order.status || 'PENDING',
                 createdAt: order.createdAt
             };
         });

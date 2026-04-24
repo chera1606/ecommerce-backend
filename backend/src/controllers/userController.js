@@ -3,6 +3,25 @@ const Product = require('../models/Product');
 const bcrypt = require('bcryptjs');
 const asyncHandler = require('../utils/asyncHandler');
 const mongoose = require('mongoose');
+const { uploadBuffer } = require('../utils/cloudinaryHelper');
+
+const PASSWORD_MIN_LENGTH = 8;
+const UPDATABLE_USER_ROLES = ['REGULAR', 'PRIVILEGED', 'ADMIN', 'SUPER_ADMIN'];
+const ADMIN_RESTRICTED_TARGET_ROLES = ['ADMIN', 'SUPER_ADMIN'];
+const SUPER_ADMIN_ROLE = 'SUPER_ADMIN';
+
+const normalizeRole = (role) => String(role || '').toUpperCase();
+
+const formatUserResponse = (userDoc) => {
+    const userData = userDoc.toObject();
+    userData.joinedAt = userDoc.createdAt ? new Date(userDoc.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    }) : 'N/A';
+
+    return userData;
+};
 
 /**
  * @desc    Get all users with stats and paginated data
@@ -79,6 +98,12 @@ const getUsers = asyncHandler(async (req, res) => {
                         $group: {
                             _id: null,
                             totalUsers: { $sum: 1 },
+                            adminUsers: {
+                                $sum: { $cond: [{ $eq: ['$role', 'ADMIN'] }, 1, 0] }
+                            },
+                            superAdminUsers: {
+                                $sum: { $cond: [{ $eq: ['$role', 'SUPER_ADMIN'] }, 1, 0] }
+                            },
                             privilegedUsers: { 
                                 $sum: { $cond: [{ $eq: ['$role', 'PRIVILEGED'] }, 1, 0] } 
                             },
@@ -97,7 +122,7 @@ const getUsers = asyncHandler(async (req, res) => {
                     { $limit: limit },
                     {
                         $project: {
-                            _id: 0,
+                            _id: 1,
                             guestId: 1,
                             fullName: 1,
                             email: 1,
@@ -119,6 +144,8 @@ const getUsers = asyncHandler(async (req, res) => {
     // Handle empty state explicitly
     const stats = results[0].stats[0] || { 
         totalUsers: 0, 
+        adminUsers: 0,
+        superAdminUsers: 0,
         privilegedUsers: 0, 
         activeNow: 0, 
         newToday: 0 
@@ -130,6 +157,8 @@ const getUsers = asyncHandler(async (req, res) => {
         success: true,
         stats: {
             totalUsers: stats.totalUsers,
+            adminUsers: stats.adminUsers,
+            superAdminUsers: stats.superAdminUsers,
             privilegedUsers: stats.privilegedUsers,
             activeNow: stats.activeNow,
             newToday: stats.newToday
@@ -171,6 +200,28 @@ const updateUserStatus = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, message: 'User not found' });
     }
 
+    const actorRole = normalizeRole(req.user?.role);
+    const targetRole = normalizeRole(user.role);
+
+    // Admins can only moderate REGULAR/PRIVILEGED users.
+    if (actorRole !== SUPER_ADMIN_ROLE && ADMIN_RESTRICTED_TARGET_ROLES.includes(targetRole)) {
+        return res.status(403).json({
+            success: false,
+            message: 'Access denied. Only super admins can change admin-level account status.'
+        });
+    }
+
+    // Safety guard: never suspend the last active super admin.
+    if (targetRole === SUPER_ADMIN_ROLE && status === 'SUSPENDED' && user.status === 'ACTIVE') {
+        const activeSuperAdmins = await User.countDocuments({ role: SUPER_ADMIN_ROLE, status: 'ACTIVE' });
+        if (activeSuperAdmins <= 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot suspend the last active super admin account.'
+            });
+        }
+    }
+
     user.status = status;
     await user.save();
 
@@ -184,9 +235,9 @@ const updateUserStatus = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Update user role (Toggle REGULAR/PRIVILEGED/ADMIN)
+ * @desc    Update user role (Toggle REGULAR/PRIVILEGED/ADMIN/SUPER_ADMIN)
  * @route   PATCH /api/admin/users/:id/role
- * @access  Private/Admin
+ * @access  Private/Super Admin
  */
 const updateUserRole = asyncHandler(async (req, res) => {
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
@@ -195,8 +246,17 @@ const updateUserRole = asyncHandler(async (req, res) => {
     const userId = req.params.id;
     const { role } = req.body;
 
-    if (!['REGULAR', 'PRIVILEGED', 'ADMIN'].includes(role)) {
+    const requestedRole = normalizeRole(role);
+
+    if (!UPDATABLE_USER_ROLES.includes(requestedRole)) {
         return res.status(400).json({ success: false, message: 'Invalid role selection.' });
+    }
+
+    if (normalizeRole(req.user?.role) !== SUPER_ADMIN_ROLE) {
+        return res.status(403).json({
+            success: false,
+            message: 'Only a super admin can modify user roles.'
+        });
     }
 
     // Strict self-modification block
@@ -212,12 +272,25 @@ const updateUserRole = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    user.role = role;
+    const currentRole = normalizeRole(user.role);
+
+    // Safety guard: do not allow removing the final super admin.
+    if (currentRole === SUPER_ADMIN_ROLE && requestedRole !== SUPER_ADMIN_ROLE) {
+        const superAdminCount = await User.countDocuments({ role: SUPER_ADMIN_ROLE });
+        if (superAdminCount <= 1) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cannot demote the last super admin account.'
+            });
+        }
+    }
+
+    user.role = requestedRole;
     await user.save();
 
     res.json({
         success: true,
-        message: `User role successfully elevated/changed to ${role}`,
+        message: `User role successfully elevated/changed to ${requestedRole}`,
         data: {
             role: user.role
         }
@@ -239,15 +312,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
         return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const userData = user.toObject();
-    // Add formatted joinedAt date for UI
-    userData.joinedAt = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    }) : 'N/A';
-
-    res.json({ success: true, data: userData });
+    res.json({ success: true, data: formatUserResponse(user) });
 });
 
 /**
@@ -270,10 +335,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
         }
 
         const updatedUser = await user.save();
-        updatedUser.password = undefined; // Do not return password hash
-        
-        const responseData = updatedUser.toObject();
-        responseData.joinedAt = updatedUser.createdAt ? new Date(updatedUser.createdAt).toLocaleDateString() : 'N/A';
+        const responseData = formatUserResponse(updatedUser);
         
         res.json({
             success: true,
@@ -292,9 +354,24 @@ const updateUserProfile = asyncHandler(async (req, res) => {
  */
 const updateUserPassword = asyncHandler(async (req, res) => {
     const user = await User.findById(req.user._id);
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
 
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+        return res.status(400).json({ success: false, message: 'Current password and new password are required' });
+    }
+    if (newPassword.length < PASSWORD_MIN_LENGTH) {
+        return res.status(400).json({
+            success: false,
+            message: `New password must be at least ${PASSWORD_MIN_LENGTH} characters long`
+        });
+    }
+    if (typeof confirmPassword === 'string' && confirmPassword !== newPassword) {
+        return res.status(400).json({ success: false, message: 'New password and confirmation do not match' });
+    }
+    if (currentPassword === newPassword) {
+        return res.status(400).json({ success: false, message: 'New password must be different from current password' });
+    }
     
     // Check old password
     const isMatch = await bcrypt.compare(currentPassword, user.password);
@@ -322,7 +399,10 @@ const updateUserProfilePhoto = asyncHandler(async (req, res) => {
     try {
         let photoUrl;
         if (req.file) {
-            photoUrl = await uploadBuffer(req.file.buffer, 'profiles');
+            const folder = ['ADMIN', 'SUPER_ADMIN'].includes(String(req.user?.role || '').toUpperCase())
+                ? 'profiles/admin'
+                : 'profiles/users';
+            photoUrl = await uploadBuffer(req.file.buffer, folder);
         } else if (req.body.photoUrl || req.body.image) {
             // Handle base64 or string URL from body
             photoUrl = req.body.photoUrl || req.body.image;
@@ -331,15 +411,17 @@ const updateUserProfilePhoto = asyncHandler(async (req, res) => {
         }
 
         user.profilePicture = photoUrl;
-        await user.save();
+        const updatedUser = await user.save();
+        const responseData = formatUserResponse(updatedUser);
 
         res.json({
             success: true,
             message: 'Profile photo updated successfully',
             data: {
-                profilePicture: photoUrl
+                profilePicture: photoUrl,
+                user: responseData
             },
-            user: user // Alias for frontend
+            user: responseData // Alias for frontend
         });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Cloudinary upload failed', error: error.message });

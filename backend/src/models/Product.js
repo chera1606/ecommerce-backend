@@ -43,6 +43,7 @@ const productSchema = new mongoose.Schema({
         required: false // Optional for legacy products, but recommended
     },
     rating: { type: Number, default: 0, min: 0, max: 5 },
+    numReviews: { type: Number, default: 0 },
     featured: { type: Boolean, default: false },
     sizes: [{ type: String }],
     colors: [{ type: String }],
@@ -54,14 +55,12 @@ const productSchema = new mongoose.Schema({
 });
 
 // Sync unitPrice/price and inventoryLevel/stock
-productSchema.pre('save', function(next) {
+productSchema.pre('save', function() {
     if (this.isModified('unitPrice')) this.price = this.unitPrice;
     else if (this.isModified('price')) this.unitPrice = this.price;
 
     if (this.isModified('inventoryLevel')) this.stock = this.inventoryLevel;
     else if (this.isModified('stock')) this.inventoryLevel = this.stock;
-
-    next();
 });
 
 // Virtual for low stock alert
