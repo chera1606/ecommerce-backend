@@ -114,10 +114,20 @@ const notifyAdminsOrderCancelledByUser = async ({ order, actorName, actorId }) =
     });
 };
 
+const notifyAdminsNewSupportMessage = async ({ name, email }) => {
+    return notifyAdmins({
+        title: 'New Support Message',
+        message: `Customer ${name} (${email}) sent a new contact message.`,
+        type: 'USER_ACTION',
+        link: '/admin/messages'
+    });
+};
+
 module.exports = {
     formatOrderCode,
     notifyAdminsOrderPlaced,
     notifyAdminsOrderStatusChanged,
     notifyAdminsOrderCancelledByUser,
-    notifyUserOrderStatusChanged
+    notifyUserOrderStatusChanged,
+    notifyAdminsNewSupportMessage
 };

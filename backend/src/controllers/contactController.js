@@ -19,6 +19,9 @@ const sendContactMessage = asyncHandler(async (req, res) => {
         message
     });
 
+    const { notifyAdminsNewSupportMessage } = require('../services/notificationService');
+    await notifyAdminsNewSupportMessage({ name, email }).catch(err => console.error("Notification failed", err));
+
     res.status(201).json({
         success: true,
         message: 'Message sent successfully. We will get back to you soon!',
