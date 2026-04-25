@@ -72,7 +72,8 @@ npm run dev
 
 ## 📚 API Documentation
 Once the server is running locally, you can view the fully interactive Swagger API documentation by navigating to:
-👉 `http://localhost:5000/api-docs`
+👉 `http://localhost:5000/api-docs` or
+ - `https://ecommerce-backend-1-87dk.onrender.com/api-docs`
 
 ---
 
